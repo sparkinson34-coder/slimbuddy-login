@@ -8,14 +8,19 @@
   <h2>Login to SlimBuddy</h2>
   <input type="email" id="email" placeholder="Email">
   <input type="password" id="password" placeholder="Password">
+
+  <!-- Login Button -->
   <button onclick="login()">Login</button>
+
+  <!-- Sign-Up Button -->
+  <button onclick="signUp()">Sign Up</button>
 
   <p id="status"></p>
   <button id="copyTokenBtn" style="display:none;" onclick="copyToken()">Copy Token</button>
 
   <script>
-    const SUPABASE_URL = "https://ymorpnxtnbnvrgmzffhj.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inltb3Jwbnh0bmJudnJnbXpmZmhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE4Nzc3NTEsImV4cCI6MjA2NzQ1Mzc1MX0.Ul4TEPZPlUVrAKY-XlcRqWtggSK7UXb4tajxjyQR7JE";
+    const SUPABASE_URL = "https://YOUR-PROJECT-ID.supabase.co";
+    const SUPABASE_ANON_KEY = "YOUR-ANON-KEY";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     async function login() {
@@ -30,6 +35,18 @@
         localStorage.setItem('slimbuddy_token', token);
         document.getElementById('status').innerText = "Login successful! Token stored.";
         document.getElementById('copyTokenBtn').style.display = 'block';
+      }
+    }
+
+    async function signUp() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const { data, error } = await supabaseClient.auth.signUp({ email, password });
+
+      if (error) {
+        document.getElementById('status').innerText = `Error: ${error.message}`;
+      } else {
+        document.getElementById('status').innerText = "Sign-up successful! Check your email to confirm your account.";
       }
     }
 
