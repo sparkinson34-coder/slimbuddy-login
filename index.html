@@ -11,80 +11,16 @@
   <input type="email" id="email" placeholder="Email">
   <input type="password" id="password" placeholder="Password">
 
-  <!-- Buttons -->
-  <button onclick="login()">Login</button>
-  <button onclick="signUp()">Sign Up</button>
-  <button onclick="resetPassword()">Reset Password</button>
+  <div>
+    <button id="login-btn">Login</button>
+    <button id="signup-btn">Sign Up</button>
+    <button id="reset-btn">Reset Password</button>
+  </div>
 
   <p id="status"></p>
-  <button id="copyTokenBtn" style="display:none;" onclick="copyToken()">Copy Token</button>
+  <button id="copyTokenBtn" style="display:none;">Copy Token</button>
 
-  <script type="module">
-    import { createClient } from '@supabase/supabase-js';
-
-    // ✅ Load environment variables (Vite injects these at build time)
-    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-    const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-    // ✅ Create Supabase client
-    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    // ✅ Login function
-    async function login() {
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-
-      const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-
-      if (error) {
-        document.getElementById('status').innerText = `Error: ${error.message}`;
-      } else {
-        const token = data.session.access_token;
-        localStorage.setItem('slimbuddy_token', token);
-        document.getElementById('status').innerText = "Login successful! Token stored.";
-        document.getElementById('copyTokenBtn').style.display = 'block';
-      }
-    }
-
-    // ✅ Sign-up function
-    async function signUp() {
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-
-      const { data, error } = await supabaseClient.auth.signUp({ email, password });
-
-      if (error) {
-        document.getElementById('status').innerText = `Error: ${error.message}`;
-      } else {
-        document.getElementById('status').innerText = "Sign-up successful! Check your email to confirm your account.";
-      }
-    }
-
-    // ✅ Reset password function
-    async function resetPassword() {
-      const email = document.getElementById('email').value;
-      if (!email) {
-        alert("Please enter your email to reset the password.");
-        return;
-      }
-
-      const { data, error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-        redirectTo: "https://yourslimbuddy.netlify.app/reset-password" // ✅ Add your app's reset page
-      });
-
-      if (error) {
-        document.getElementById('status').innerText = `Error: ${error.message}`;
-      } else {
-        document.getElementById('status').innerText = "Password reset email sent! Check your inbox.";
-      }
-    }
-
-    // ✅ Copy token function
-    function copyToken() {
-      const token = localStorage.getItem('slimbuddy_token');
-      navigator.clipboard.writeText(token);
-      alert('Token copied! Paste it into SlimBuddy GPT when prompted.');
-    }
-  </script>
+  <script type="module" src="/main.js"></script>
 </body>
 </html>
+
