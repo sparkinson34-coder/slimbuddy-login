@@ -21,14 +21,12 @@
       margin-bottom: 20px;
     }
     .logo {
-      width: 80px;
-      height: 80px;
-      background: #ddd;
+      width: 100px;
+      height: 100px;
       border-radius: 50%;
-      display: inline-block;
-      margin-bottom: 10px;
-      background-size: cover;
-      background-position: center;
+      display: block;
+      margin: 0 auto 10px;
+      object-fit: cover;
     }
     h1 {
       color: #2b6777;
@@ -53,6 +51,14 @@
       border: 1px solid #ccc;
       border-radius: 4px;
     }
+    .button-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .button-row button {
+      flex: 1;
+    }
     button {
       margin: 10px auto;
       padding: 12px 20px;
@@ -62,7 +68,6 @@
       border-radius: 5px;
       cursor: pointer;
       font-size: 16px;
-      display: block;
     }
     button:hover {
       background-color: #1d4f5a;
@@ -103,7 +108,7 @@
 </head>
 <body>
   <header>
-    <div class="logo" id="logo"></div>
+    <img src="logo.png" alt="SlimBuddy Logo" class="logo" />
     <h1>Login to SlimBuddy</h1>
   </header>
 
@@ -111,8 +116,10 @@
     <input type="email" id="email" placeholder="Email" />
     <input type="password" id="password" placeholder="Password" />
 
-    <button id="login-btn">Login</button>
-    <button id="signup-btn">Sign Up</button>
+    <div class="button-row">
+      <button id="login-btn">Login</button>
+      <button id="signup-btn">Sign Up</button>
+    </div>
     <button id="reset-btn">Reset Password</button>
 
     <p id="status"></p>
@@ -129,4 +136,3 @@
   </footer>
 </body>
 </html>
-
