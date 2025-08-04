@@ -4,6 +4,57 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SlimBuddy Login</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      line-height: 1.6;
+      color: #333;
+      text-align: center;
+    }
+    h2 {
+      color: #2b6777;
+    }
+    input {
+      display: block;
+      margin: 10px auto;
+      padding: 10px;
+      width: 250px;
+      max-width: 80%;
+      font-size: 16px;
+    }
+    button {
+      margin: 10px;
+      padding: 10px 20px;
+      background-color: #2b6777;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #1d4f5a;
+    }
+    #status {
+      margin-top: 15px;
+      color: #333;
+    }
+    footer {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #ccc;
+      font-size: 14px;
+    }
+    footer a {
+      margin: 0 10px;
+      color: #2b6777;
+      text-decoration: none;
+    }
+    footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+  <script type="module" crossorigin src="/assets/index-mkeLYrsR.js"></script>
 </head>
 <body>
   <h2>Login to SlimBuddy</h2>
@@ -20,7 +71,10 @@
   <p id="status"></p>
   <button id="copyTokenBtn" style="display:none;">Copy Token</button>
 
-  <script type="module" src="/src/main.js"></script>
+  <footer>
+    <a href="privacy.html">Privacy Policy</a> |
+    <a href="terms.html">Terms of Service</a>
+  </footer>
 </body>
 </html>
 
