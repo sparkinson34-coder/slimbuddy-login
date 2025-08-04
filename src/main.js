@@ -34,6 +34,7 @@ async function login() {
     localStorage.setItem('slimbuddy_token', token);
     document.getElementById('status').innerText = 'Login successful! Token stored.';
     document.getElementById('copyTokenBtn').style.display = 'block';
+    document.getElementById('instructions').style.display = 'block';
     document.getElementById('copyTokenBtn').onclick = () => {
       navigator.clipboard.writeText(token);
       alert('Token copied! Paste it into SlimBuddy GPT when prompted.');

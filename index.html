@@ -16,6 +16,25 @@
       height: 100vh;
       background: #f7f9fb;
     }
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .logo {
+      width: 80px;
+      height: 80px;
+      background: #ddd;
+      border-radius: 50%;
+      display: inline-block;
+      margin-bottom: 10px;
+      background-size: cover;
+      background-position: center;
+    }
+    h1 {
+      color: #2b6777;
+      font-size: 24px;
+      margin: 0;
+    }
     .card {
       background: #fff;
       padding: 30px 20px;
@@ -24,10 +43,6 @@
       width: 90%;
       max-width: 400px;
       text-align: center;
-    }
-    h2 {
-      color: #2b6777;
-      margin-bottom: 20px;
     }
     input {
       display: block;
@@ -61,6 +76,15 @@
       display: none;
       margin-top: 15px;
     }
+    #instructions {
+      display: none;
+      margin-top: 8px;
+      font-size: 14px;
+      color: #444;
+      background: #f1f1f1;
+      padding: 8px;
+      border-radius: 5px;
+    }
     footer {
       margin-top: 30px;
       text-align: center;
@@ -78,9 +102,12 @@
   <script type="module" src="/src/main.js"></script>
 </head>
 <body>
-  <div class="card">
-    <h2>Login to SlimBuddy</h2>
+  <header>
+    <div class="logo" id="logo"></div>
+    <h1>Login to SlimBuddy</h1>
+  </header>
 
+  <div class="card">
     <input type="email" id="email" placeholder="Email" />
     <input type="password" id="password" placeholder="Password" />
 
@@ -90,6 +117,10 @@
 
     <p id="status"></p>
     <button id="copyTokenBtn">Copy Token</button>
+    <div id="instructions">
+      Paste this token into SlimBuddy GPT and type:<br>
+      <strong>Here's my token</strong>
+    </div>
   </div>
 
   <footer>
@@ -98,3 +129,4 @@
   </footer>
 </body>
 </html>
+
