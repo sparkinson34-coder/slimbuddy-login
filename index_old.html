@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SlimBuddy Login</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: #f7f9fb;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    .logo {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      display: block;
+      margin: 0 auto 8px;
+      object-fit: cover;
+    }
+    h1 {
+      color: #2b6777;
+      font-size: 20px;
+      margin: 0;
+    }
+    .card {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      width: 90%;
+      max-width: 400px;
+      text-align: center;
+    }
+    input {
+      display: block;
+      margin: 10px auto;
+      padding: 10px;
+      width: 100%;
+      max-width: 300px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .button-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .button-row button {
+      flex: 1;
+      min-width: 120px;
+    }
+    button {
+      margin: 10px auto;
+      padding: 12px 18px;
+      background-color: #2b6777;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background-color: #1d4f5a;
+    }
+    #reset-btn {
+      width: 100%;
+      max-width: 300px;
+    }
+    #status {
+      margin-top: 15px;
+      color: #333;
+      font-weight: bold;
+      font-size: 14px;
+    }
+    #copyTokenBtn {
+      display: none;
+      margin-top: 12px;
+      width: 100%;
+      max-width: 200px;
+    }
+    #instructions {
+      display: none;
+      margin-top: 8px;
+      font-size: 14px;
+      color: #444;
+      background: #f1f1f1;
+      padding: 8px;
+      border-radius: 5px;
+    }
+    footer {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 13px;
+    }
+    footer a {
+      margin: 0 8px;
+      color: #2b6777;
+      text-decoration: none;
+    }
+    footer a:hover {
+      text-decoration: underline;
+    }
+    @media (max-width: 480px) {
+      .button-row {
+        flex-direction: column;
+      }
+      .button-row button {
+        width: 100%;
+      }
+    }
+  </style>
+  <script type="module" src="/src/main.js"></script>
+</head>
+<body>
+  <header>
+    <img src="logo.png" alt="SlimBuddy Logo" class="logo" />
+    <h1>Login to SlimBuddy</h1>
+  </header>
+
+  <div class="card">
+    <input type="email" id="email" placeholder="Email" />
+    <input type="password" id="password" placeholder="Password" />
+
+    <div class="button-row">
+      <button id="login-btn">Login</button>
+      <button id="signup-btn">Sign Up</button>
+    </div>
+    <button id="reset-btn">Reset Password</button>
+
+    <p id="status"></p>
+    <button id="copyTokenBtn">Copy Token</button>
+    <div id="instructions">
+      Paste this token into SlimBuddy GPT and type:<br>
+      <strong>Here's my token</strong>
+    </div>
+  </div>
+
+  <footer>
+    <a href="privacy.html">Privacy Policy</a> |
+    <a href="terms.html">Terms of Service</a>
+  </footer>
+</body>
+</html>
+

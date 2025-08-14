@@ -1,138 +1,140 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SlimBuddy Login</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SlimBuddy — Get My Token</title>
+  <meta http-equiv="Cache-Control" content="no-store" />
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      background: #f7f9fb;
-    }
-    header {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    .logo {
-      width: 100px;
-      height: 100px;
-      border-radius: 50%;
-      display: block;
-      margin: 0 auto 10px;
-      object-fit: cover;
-    }
-    h1 {
-      color: #2b6777;
-      font-size: 24px;
-      margin: 0;
-    }
-    .card {
-      background: #fff;
-      padding: 30px 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      width: 90%;
-      max-width: 400px;
-      text-align: center;
-    }
-    input {
-      display: block;
-      margin: 10px auto;
-      padding: 10px;
-      width: 90%;
-      font-size: 16px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-    .button-row {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-    }
-    .button-row button {
-      flex: 1;
-    }
-    button {
-      margin: 10px auto;
-      padding: 12px 20px;
-      background-color: #2b6777;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 16px;
-    }
-    button:hover {
-      background-color: #1d4f5a;
-    }
-    #status {
-      margin-top: 15px;
-      color: #333;
-      font-weight: bold;
-    }
-    #copyTokenBtn {
-      display: none;
-      margin-top: 15px;
-    }
-    #instructions {
-      display: none;
-      margin-top: 8px;
-      font-size: 14px;
-      color: #444;
-      background: #f1f1f1;
-      padding: 8px;
-      border-radius: 5px;
-    }
-    footer {
-      margin-top: 30px;
-      text-align: center;
-      font-size: 14px;
-    }
-    footer a {
-      margin: 0 10px;
-      color: #2b6777;
-      text-decoration: none;
-    }
-    footer a:hover {
-      text-decoration: underline;
-    }
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; }
+    h1 { margin-bottom: 8px; }
+    .row { margin: 12px 0; }
+    label { font-weight: 600; }
+    input, textarea { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; }
+    textarea { height: 140px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    button { padding: 10px 14px; border-radius: 10px; border: 1px solid #ccc; cursor: pointer; }
+    .ok { color: #0a0; }
+    .err { color: #c00; }
+    .muted { color: #666; font-size: 0.9rem; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   </style>
-  <script type="module" src="/src/main.js"></script>
 </head>
 <body>
-  <header>
-    <img src="logo.png" alt="SlimBuddy Logo" class="logo" />
-    <h1>Login to SlimBuddy</h1>
-  </header>
+  <h1>SlimBuddy — Get Your API Token</h1>
+  <p class="muted">Use a magic link to sign in, then copy your <strong>access token</strong> and paste it into the SlimBuddy GPT when prompted.</p>
 
-  <div class="card">
-    <input type="email" id="email" placeholder="Email" />
-    <input type="password" id="password" placeholder="Password" />
+  <div class="row">
+    <label for="email">Email</label>
+    <input id="email" type="email" placeholder="you@example.com" />
+  </div>
 
-    <div class="button-row">
-      <button id="login-btn">Login</button>
-      <button id="signup-btn">Sign Up</button>
-    </div>
-    <button id="reset-btn">Reset Password</button>
+  <div class="row">
+    <button id="sendLink">Send Magic Link</button>
+    <span id="status"></span>
+  </div>
 
-    <p id="status"></p>
-    <button id="copyTokenBtn">Copy Token</button>
-    <div id="instructions">
-      Paste this token into YourSlimBuddy GPT and type:<br>
-      <strong>Here's my token</strong>
+  <hr/>
+
+  <div class="row">
+    <div class="grid">
+      <button id="showToken">Show My Token</button>
+      <button id="refreshSession">Refresh Session</button>
     </div>
   </div>
 
-  <footer>
-    <a href="privacy.html">Privacy Policy</a> |
-    <a href="terms.html">Terms of Service</a>
-  </footer>
+  <div class="row">
+    <label>Your Token (access_token)</label>
+    <textarea id="tokenBox" readonly></textarea>
+    <div class="muted">Note: Tokens expire periodically. If calls fail later, come back here and click “Refresh Session” or re-send a magic link.</div>
+  </div>
+
+  <div class="row grid">
+    <button id="copyBtn">Copy Token</button>
+    <button id="openGpt">Open SlimBuddy GPT</button>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+    // Option A: Hardcode (acceptable for anon key)
+    const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+    const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
+
+    // Option B: If you configured Netlify env vars + a bundler, read them here instead.
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const emailEl   = document.getElementById('email');
+    const statusEl  = document.getElementById('status');
+    const tokenBox  = document.getElementById('tokenBox');
+
+    // 1) Send the magic link
+    document.getElementById('sendLink').onclick = async () => {
+      const email = (emailEl.value || '').trim();
+      if (!email) return msg('Enter an email address.', true);
+
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: window.location.origin } // returns to this page
+      });
+      if (error) return msg(error.message, true);
+      msg('Magic link sent. Check your email and click the link.');
+    };
+
+    // 2) Handle return from magic link (exchange code for session)
+    (async function handleRedirect() {
+      const url = new URL(window.location.href);
+      const code = url.searchParams.get('code');       // supabase v2 uses ?code=
+      const next = url.searchParams.get('next') || ''; // optional
+      if (code) {
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) { msg('Login failed. Please try again.', true); return; }
+        msg('Signed in! Click “Show My Token”.');
+        // Clean the URL (remove code param)
+        window.history.replaceState({}, '', window.location.origin + (next ? `?next=${encodeURIComponent(next)}` : ''));
+      }
+    })();
+
+    // 3) Show current access token
+    document.getElementById('showToken').onclick = async () => {
+      const { data, error } = await supabase.auth.getSession();
+      if (error || !data?.session) return msg('Not signed in. Use magic link first.', true);
+      tokenBox.value = data.session.access_token || '';
+      if (tokenBox.value) msg('Token ready. Click “Copy Token”, then “Open SlimBuddy GPT”.');
+      else msg('No token available. Try Refresh Session or magic link.', true);
+    };
+
+    // 4) Refresh session (if expired)
+    document.getElementById('refreshSession').onclick = async () => {
+      // getSession() triggers refresh if a refresh_token exists in storage
+      const { data, error } = await supabase.auth.getSession();
+      if (error) return msg(error.message, true);
+      if (!data?.session) return msg('No active session. Send a magic link again.', true);
+      tokenBox.value = data.session.access_token || '';
+      msg('Session refreshed. Token updated.');
+    };
+
+    // 5) Copy token
+    document.getElementById('copyBtn').onclick = async () => {
+      if (!tokenBox.value) return msg('No token to copy. Click “Show My Token”.', true);
+      try {
+        await navigator.clipboard.writeText(tokenBox.value);
+        msg('Copied token to clipboard!', false, true);
+      } catch {
+        msg('Copy failed. Select the token and copy manually.', true);
+      }
+    };
+
+    // 6) Open GPT
+    document.getElementById('openGpt').onclick = () => {
+      window.open('https://chat.openai.com/g/gpt-XXXX-your-slimbuddy', '_blank', 'noopener');
+    };
+
+    function msg(text, isErr=false, flash=false) {
+      statusEl.textContent = text;
+      statusEl.className = isErr ? 'err' : 'ok';
+      if (flash) setTimeout(() => { statusEl.textContent = ''; }, 1500);
+    }
+  </script>
 </body>
 </html>
