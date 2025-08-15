@@ -28,20 +28,37 @@ function msg(text, isErr = false, flash = false) {
   if (flash) setTimeout(() => (statusEl.textContent = ''), 1500);
 }
 
-// Query param helper
 function qp(name) {
   const p = new URLSearchParams(window.location.search);
   return p.get(name);
 }
 
-// Safe redirect allowlist
+function parseHashTokens() {
+  // handle implicit flow: #access_token=...&refresh_token=...
+  const h = (window.location.hash || '').replace(/^#/, '');
+  if (!h) return null;
+  const params = new URLSearchParams(h);
+  const access_token = params.get('access_token');
+  const refresh_token = params.get('refresh_token');
+  if (access_token && refresh_token) return { access_token, refresh_token };
+  return null;
+}
+
+function clearUrlNoise(keepNext = '') {
+  const base = window.location.origin;
+  const ret = qp('returnTo');
+  const next = keepNext ? `?next=${encodeURIComponent(keepNext)}` : '';
+  const rt = ret ? `${next ? '&' : '?'}returnTo=${encodeURIComponent(ret)}` : '';
+  window.history.replaceState({}, '', base + next + rt);
+}
+
 function isSafeReturnUrl(url) {
   try {
     const u = new URL(url);
     const allow = new Set([
       'chat.openai.com',
       'chatgpt.com',
-      'yourslimbuddy.netlify.app', // this site
+      'yourslimbuddy.netlify.app',
     ]);
     return ['https:', 'http:'].includes(u.protocol) && allow.has(u.hostname);
   } catch {
@@ -49,7 +66,6 @@ function isSafeReturnUrl(url) {
   }
 }
 
-// Redirect priority with safe checks
 function smartRedirectAfterCopy() {
   const qsReturnTo = qp('returnTo');
   const ssReturnTo = sessionStorage.getItem('slimbuddyReturnUrl');
@@ -63,7 +79,6 @@ function smartRedirectAfterCopy() {
   if (ref && isSafeReturnUrl(ref)) return (window.location.href = ref);
   if (history.length > 1) return history.back();
 
-  // final fallback: show a message
   const fb = $('copy-feedback');
   if (fb) {
     fb.textContent = 'Token copied. Switch back to SlimBuddy GPT and paste it.';
@@ -82,7 +97,16 @@ if (incomingReturnTo) sessionStorage.setItem(SS_RETURN, incomingReturnTo);
 const LS_TOKEN = 'slimbuddy_jwt';
 let existingToken = localStorage.getItem(LS_TOKEN) || '';
 
-// If we have a token, prep the UI for immediate copy-return flow
+function revealCopy(token) {
+  tokenBox.value = token || '';
+  copyBtn.style.display = 'inline-block';
+  $('instructions').style.display = 'block';
+  localStorage.setItem(LS_TOKEN, tokenBox.value);
+  existingToken = tokenBox.value;
+  msg('✅ Logged in. Tap “Copy Token & Return to SlimBuddy”.');
+}
+
+// If we have a token already, prep UI
 if (existingToken) {
   tokenBox.value = existingToken;
   copyBtn.style.display = 'inline-block';
@@ -93,19 +117,14 @@ if (existingToken) {
 // ----- fast-path: auto-copy + auto-redirect when possible -----
 (function maybeFastReturn() {
   if (!existingToken || !returnTo || !isSafeReturnUrl(returnTo)) return;
-
   const fastDiv = $('fastReturn');
   const fastSeconds = $('fastSeconds');
   const cancel = $('cancelRedirect');
-
   if (fastDiv && fastSeconds && cancel) {
     fastDiv.style.display = 'block';
     let remaining = 1;
     fastSeconds.textContent = String(remaining);
-
-    // Try to copy (best-effort)
     navigator.clipboard?.writeText(existingToken).catch(() => {});
-
     const timer = setInterval(() => {
       remaining -= 1;
       if (remaining <= 0) {
@@ -115,7 +134,6 @@ if (existingToken) {
         fastSeconds.textContent = String(remaining);
       }
     }, 1000);
-
     cancel.addEventListener('click', (e) => {
       e.preventDefault();
       clearInterval(timer);
@@ -129,83 +147,73 @@ if (existingToken) {
 $('sendLink')?.addEventListener('click', async () => {
   const email = ($('email')?.value || '').trim();
   if (!email) return msg('Enter an email address.', true);
-
-  // Carry returnTo through the email link (works across devices)
+  // carry returnTo through email link (cross-device safe)
   const base = window.location.origin;
   const emailRedirectTo =
     returnTo && isSafeReturnUrl(returnTo)
       ? `${base}?returnTo=${encodeURIComponent(returnTo)}`
       : base;
-
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: { emailRedirectTo },
   });
   if (error) return msg(error.message, true);
-  msg('Magic link sent. Check your email.');
+  msg('Magic link sent. Email comes from Supabase Auth.');
 });
 
-// ----- Handle redirect from magic link (?code=...) -----
-(async function handleRedirect() {
+// ----- Handle redirect from email -----
+// 1) Try PKCE/code flow (?code=...)
+(async function handleCodeFlow() {
   const code = qp('code');
   const next = qp('next') || '';
   if (!code) return;
-
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) { msg('Login failed. Try again.', true); return; }
+  revealCopy(data?.session?.access_token || '');
+  clearUrlNoise(next);
+})();
 
-  msg('Signed in. Tap “Copy Token & Return to SlimBuddy”.');
-  // preload token for copy
-  tokenBox.value = data?.session?.access_token || '';
-  if (tokenBox.value) {
-    copyBtn.style.display = 'inline-block';
-    $('instructions').style.display = 'block';
-    // keep a local copy for next time (fast-path)
-    localStorage.setItem(LS_TOKEN, tokenBox.value);
-    existingToken = tokenBox.value;
+// 2) Try implicit flow (#access_token=...&refresh_token=...)
+(async function handleHashFlow() {
+  const tokens = parseHashTokens();
+  if (!tokens) return;
+  const { data, error } = await supabase.auth.setSession(tokens);
+  if (error) { msg('Login failed. Try again.', true); return; }
+  // after setSession, get fresh session to show token
+  const { data: sess } = await supabase.auth.getSession();
+  revealCopy(sess?.session?.access_token || '');
+  clearUrlNoise();
+})();
+
+// 3) Fallback: if we arrive with an active session already, reveal copy
+(async function onLoadSessionCheck() {
+  const { data } = await supabase.auth.getSession();
+  if (data?.session?.access_token && !existingToken) {
+    revealCopy(data.session.access_token);
   }
-
-  // Clean URL (keep next if present)
-  window.history.replaceState({}, '', window.location.origin + (next ? `?next=${encodeURIComponent(next)}` : ''));
 })();
 
 // ----- Refresh session (renew token) -----
 $('refreshSession')?.addEventListener('click', async () => {
-  const { data, error } = await supabase.auth.getSession(); // refresh if possible
+  const { data, error } = await supabase.auth.getSession(); // will refresh if possible
   if (error) return msg(error.message, true);
-  if (!data?.session) return msg('No active session. Send a magic link.', true);
-
-  tokenBox.value = data.session.access_token || '';
-  if (tokenBox.value) {
-    msg('Session refreshed. Token updated.');
-    copyBtn.style.display = 'inline-block';
-    $('instructions').style.display = 'block';
-    localStorage.setItem(LS_TOKEN, tokenBox.value);
-    existingToken = tokenBox.value;
-  } else {
-    msg('No token available. Try magic link.', true);
-  }
+  if (!data?.session) return msg('No active session. Send magic link.', true);
+  revealCopy(data.session.access_token || '');
 });
 
 // ----- Copy token & return -----
 copyBtn?.addEventListener('click', async () => {
   const token = (tokenBox.value || '').trim();
   if (!token) return msg('No token to copy.', true);
-
   localStorage.setItem(LS_TOKEN, token);
-
   let copied = false;
-  try { await navigator.clipboard.writeText(token); copied = true; }
-  catch { /* non-fatal */ }
-
+  try { await navigator.clipboard.writeText(token); copied = true; } catch {}
   if (!copied) {
-    // fallback: reveal token + toggle link
     tokenBox.style.display = 'block';
     toggleTokenLink.style.display = 'inline';
     msg('Copy failed — token shown. Copy manually, then return to SlimBuddy.');
     return;
   }
-
   smartRedirectAfterCopy();
 });
 
