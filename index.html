@@ -1,46 +1,86 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>SlimBuddy Login</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SlimBuddy — Get My Token</title>
+  <meta http-equiv="Cache-Control" content="no-store" />
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; }
+    h1 { margin-bottom: 8px; }
+    .row { margin: 12px 0; }
+    label { font-weight: 600; }
+    input, textarea { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; }
+    textarea { height: 140px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    button { padding: 10px 14px; border-radius: 10px; border: 1px solid #ccc; cursor: pointer; }
+    .ok { color: #0a0; }
+    .err { color: #c00; }
+    .muted { color: #666; font-size: 0.9rem; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    #copyTokenBtn { display:none; }
+    #instructions { display:none; }
+
+    /* small fast-return banner */
+    #fastReturn {
+      display: none;
+      background: #f6f7f9;
+      border: 1px solid #dfe3e8;
+      padding: 10px 12px;
+      border-radius: 10px;
+      margin: 12px 0;
+      font-size: 0.95rem;
+    }
+    #fastReturn a { margin-left: 8px; }
+  </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Login to SlimBuddy</h1>
-    <p>Click the button below to log in and get your SlimBuddy token.</p>
-    <button id="loginBtn">Login with SlimBuddy</button>
+  <h1>SlimBuddy — Get Your API Token</h1>
+  <p class="muted">Use a magic link to sign in, then copy your <strong>access token</strong>. You’ll be returned to SlimBuddy GPT to paste it.</p>
 
-    <div id="tokenSection" style="display:none; margin-top: 20px;">
-      <p>Paste your token below, then click Save Token:</p>
-      <textarea id="jwtToken" placeholder="Paste your JWT token here"></textarea>
-      <button id="saveTokenBtn">Save Token</button>
-    </div>
-
-    <div id="statusMessage" style="margin-top: 20px;"></div>
+  <div class="row">
+    <label for="email">Email</label>
+    <input id="email" type="email" placeholder="you@example.com" />
   </div>
-<script type="module" src="./src/main.js"></script>
+
+  <div class="row">
+    <button id="sendLink">Send Magic Link</button>
+    <span id="status"></span>
+  </div>
+
+  <hr/>
+
+  <div class="row grid">
+    <button id="showToken">Show My Token</button>
+    <button id="refreshSession">Refresh Session</button>
+  </div>
+
+  <div class="row">
+    <label>Your Token (access_token)</label>
+    <textarea id="tokenBox" readonly></textarea>
+    <div class="muted">Tokens expire. If calls fail later, click “Refresh Session” or re-send a magic link.</div>
+  </div>
+
+  <div class="row">
+    <button id="copyTokenBtn">Copy Token & Return to SlimBuddy</button>
+    <div id="instructions" class="muted">If you’re not redirected automatically, switch back to SlimBuddy GPT and paste your token.</div>
+    <div id="copy-feedback" class="muted" style="display:none;"></div>
+  </div>
+
+  <!-- 🔥 New: fast-return banner -->
+  <div id="fastReturn" class="row">
+    Returning to SlimBuddy in <span id="fastSeconds">1</span>… 
+    <a href="#" id="cancelRedirect">Cancel</a>
+  </div>
+
+  <div class="row">
+    <button id="openGpt">Open SlimBuddy GPT</button>
+  </div>
 
   <footer style="margin-top: 40px; font-size: 0.85rem; color: #666; text-align: center;">
     <a href="privacy.html" target="_blank">Privacy Policy</a> |
     <a href="terms.html" target="_blank">Terms of Service</a>
   </footer>
 
-  <script>
-    document.getElementById('loginBtn').addEventListener('click', () => {
-      window.location.href = "https://yourslimbuddy.netlify.app/";
-    });
-
-    document.getElementById('saveTokenBtn').addEventListener('click', () => {
-      const token = document.getElementById('jwtToken').value.trim();
-      if (!token) {
-        document.getElementById('statusMessage').innerText = "❌ Please paste a valid token.";
-        return;
-      }
-      localStorage.setItem('slimbuddy_jwt', token);
-      document.getElementById('statusMessage').innerText = "✅ Token saved. You can now return to SlimBuddy in ChatGPT.";
-    });
-  </script>
+  <script type="module" src="./src/main.js"></script>
 </body>
 </html>
