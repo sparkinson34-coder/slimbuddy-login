@@ -4,37 +4,32 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// ----- Vite env (injected at build time) -----
+// --- Vite env (build-time)
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.error('Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY');
-}
-
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) console.error('Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY');
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// ----- DOM helpers -----
+// --- DOM helpers
 const $ = (id) => document.getElementById(id);
 const statusEl = $('status');
 const tokenBox = $('tokenBox');
 const copyBtn = $('copyTokenBtn');
 const toggleTokenLink = $('toggleToken');
+const firstTimeView = $('firstTimeView');
+const returnView = $('returnView');
+const subTitle = $('modeSubtitle');
 
 function msg(text, isErr = false, flash = false) {
   if (!statusEl) return;
-  statusEl.textContent = text;
-  statusEl.className = isErr ? 'err' : 'ok';
+  statusEl.textContent = text || '';
+  statusEl.className = `helper ${isErr ? 'err' : 'ok'}`;
   if (flash) setTimeout(() => (statusEl.textContent = ''), 1500);
 }
 
-function qp(name) {
-  const p = new URLSearchParams(window.location.search);
-  return p.get(name);
-}
+function qp(name) { return new URLSearchParams(window.location.search).get(name); }
 
 function parseHashTokens() {
-  // handle implicit flow: #access_token=...&refresh_token=...
   const h = (window.location.hash || '').replace(/^#/, '');
   if (!h) return null;
   const params = new URLSearchParams(h);
@@ -44,92 +39,72 @@ function parseHashTokens() {
   return null;
 }
 
-function clearUrlNoise(keepNext = '') {
-  const base = window.location.origin;
-  const ret = qp('returnTo');
-  const next = keepNext ? `?next=${encodeURIComponent(keepNext)}` : '';
-  const rt = ret ? `${next ? '&' : '?'}returnTo=${encodeURIComponent(ret)}` : '';
-  window.history.replaceState({}, '', base + next + rt);
-}
-
 function isSafeReturnUrl(url) {
   try {
     const u = new URL(url);
-    const allow = new Set([
-      'chat.openai.com',
-      'chatgpt.com',
-      'yourslimbuddy.netlify.app',
-    ]);
+    const allow = new Set(['chat.openai.com', 'chatgpt.com', 'yourslimbuddy.netlify.app']);
     return ['https:', 'http:'].includes(u.protocol) && allow.has(u.hostname);
-  } catch {
-    return false;
-  }
+  } catch { return false; }
+}
+
+function clearUrlNoise() {
+  const base = window.location.origin;
+  const params = new URLSearchParams(window.location.search);
+  const keep = new URLSearchParams();
+  ['returnTo', 'mode'].forEach(k => { const v = params.get(k); if (v) keep.set(k, v); });
+  const qs = keep.toString();
+  window.history.replaceState({}, '', qs ? `${base}?${qs}` : base);
 }
 
 function smartRedirectAfterCopy() {
   const qsReturnTo = qp('returnTo');
-  const ssReturnTo = sessionStorage.getItem('slimbuddyReturnUrl');
   const ref = document.referrer;
-
   if (qsReturnTo && isSafeReturnUrl(qsReturnTo)) return (window.location.href = qsReturnTo);
-  if (ssReturnTo && isSafeReturnUrl(ssReturnTo)) {
-    sessionStorage.removeItem('slimbuddyReturnUrl');
-    return (window.location.href = ssReturnTo);
-  }
   if (ref && isSafeReturnUrl(ref)) return (window.location.href = ref);
   if (history.length > 1) return history.back();
 
   const fb = $('copy-feedback');
-  if (fb) {
-    fb.textContent = 'Token copied. Switch back to SlimBuddy GPT and paste it.';
-    fb.style.display = 'block';
-  }
+  if (fb) { fb.textContent = 'Token copied. Switch back to YourSlimBuddy GPT and paste it.'; fb.style.display = 'block'; }
 }
 
-// ----- new guards for mobile/in-app safety -----
 function hasMagicLinkParams() {
   const code = qp('code') || '';
   const hash = (window.location.hash || '').toLowerCase();
   return Boolean(code) || hash.includes('access_token=');
 }
+function canWriteClipboard() { return !!(navigator.clipboard && navigator.clipboard.writeText); }
 
-function canWriteClipboard() {
-  return !!(navigator.clipboard && navigator.clipboard.writeText);
-}
+// --- Views
+function showFirstTime() { firstTimeView.style.display = 'block'; returnView.style.display = 'none'; subTitle.textContent = 'Log in to get your Access Token'; }
+function showReturn() { firstTimeView.style.display = 'none'; returnView.style.display = 'block'; subTitle.textContent = 'Copy your token & return to YourSlimBuddy'; }
 
-// ----- returnTo wiring -----
-const SS_RETURN = 'slimbuddyReturnUrl';
-const incomingReturnTo = qp('returnTo');
-const storedReturnTo = sessionStorage.getItem(SS_RETURN);
-const returnTo = incomingReturnTo || storedReturnTo || '';
-if (incomingReturnTo) sessionStorage.setItem(SS_RETURN, incomingReturnTo);
+// --- returnTo handling
+const returnTo = (() => {
+  const q = qp('returnTo');
+  return q && isSafeReturnUrl(q) ? q : '';
+})();
 
-// ----- token storage (for fast-path / returning users) -----
+// --- token cache for fast-path
 const LS_TOKEN = 'slimbuddy_jwt';
 let existingToken = localStorage.getItem(LS_TOKEN) || '';
 
-function revealCopy(token) {
-  tokenBox.value = token || '';
-  copyBtn.style.display = 'inline-block';
-  $('instructions').style.display = 'block';
-  localStorage.setItem(LS_TOKEN, tokenBox.value);
-  existingToken = tokenBox.value;
-  msg('✅ Logged in. Tap “Copy Token & Return to SlimBuddy”.');
-}
+// If URL has ?mode=return, default to return view
+const forceReturnMode = qp('mode') === 'return';
+if (forceReturnMode) showReturn(); else showFirstTime();
 
-// If we have a token already, prep UI
+// If we have a token already, prep return UI
 if (existingToken) {
   tokenBox.value = existingToken;
   copyBtn.style.display = 'inline-block';
   $('instructions').style.display = 'block';
+  if (!forceReturnMode) showReturn();
   msg('✅ Found a previously saved token.');
 }
 
-// ----- fast-path: only when NOT returning from email and copy succeeds -----
+// --- Fast return (only if not in a magic-link return AND copy succeeds)
 (function maybeFastReturn() {
-  if (hasMagicLinkParams()) return;                // don't fast-path during login return
-  if (!existingToken || !returnTo || !isSafeReturnUrl(returnTo)) return;
-
+  if (hasMagicLinkParams()) return;
+  if (!existingToken || !returnTo) return;
   const fastDiv = $('fastReturn');
   const fastSeconds = $('fastSeconds');
   const cancel = $('cancelRedirect');
@@ -137,123 +112,123 @@ if (existingToken) {
 
   (async () => {
     let copied = false;
-    if (canWriteClipboard()) {
-      try { await navigator.clipboard.writeText(existingToken); copied = true; } catch {}
-    }
+    if (canWriteClipboard()) { try { await navigator.clipboard.writeText(existingToken); copied = true; } catch {} }
     if (!copied) {
-      // No auto-redirect — show normal UI
       copyBtn.style.display = 'inline-block';
       $('instructions').style.display = 'block';
-      msg('Tap “Copy Token & Return to SlimBuddy”. If needed, reveal token to copy manually.');
+      showReturn();
+      msg('Tap “Copy Token & Return to YourSlimBuddy”. If needed, reveal token to copy manually.');
       return;
     }
-
-    // Copy succeeded → short banner + auto-redirect
+    showReturn();
     fastDiv.style.display = 'block';
     let remaining = 1;
     fastSeconds.textContent = String(remaining);
     const timer = setInterval(() => {
       remaining -= 1;
-      if (remaining <= 0) {
-        clearInterval(timer);
-        window.location.href = returnTo;
-      } else {
-        fastSeconds.textContent = String(remaining);
-      }
+      if (remaining <= 0) { clearInterval(timer); window.location.href = returnTo; }
+      else fastSeconds.textContent = String(remaining);
     }, 1000);
-
     cancel.addEventListener('click', (e) => {
-      e.preventDefault();
-      clearInterval(timer);
-      fastDiv.style.display = 'none';
+      e.preventDefault(); clearInterval(timer); fastDiv.style.display = 'none';
       msg('Fast return cancelled.', false, true);
-      copyBtn.style.display = 'inline-block';
-      $('instructions').style.display = 'block';
+      copyBtn.style.display = 'inline-block'; $('instructions').style.display = 'block';
     });
   })();
 })();
 
-// ----- Send magic link (keeps returnTo across devices) -----
+// --- Send magic link
 $('sendLink')?.addEventListener('click', async () => {
   const email = ($('email')?.value || '').trim();
   if (!email) return msg('Enter an email address.', true);
 
+  // Include mode=return so when they come back we show the return view directly
   const base = window.location.origin;
-  const emailRedirectTo =
-    returnTo && isSafeReturnUrl(returnTo)
-      ? `${base}?returnTo=${encodeURIComponent(returnTo)}`
-      : base;
+  const redirect = new URL(base);
+  redirect.searchParams.set('mode', 'return');
+  if (returnTo) redirect.searchParams.set('returnTo', returnTo);
 
   const { error } = await supabase.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo },
+    options: { emailRedirectTo: redirect.toString() },
   });
   if (error) return msg(error.message, true);
-  msg('Magic link sent. Email comes from Supabase Auth (check spam).');
+  msg('Magic link sent. Email comes from YourSlimBuddy via Supabase Auth (check spam).');
 });
 
-// ----- Handle redirect from email -----
-// 1) PKCE/code flow (?code=...)
+// --- Handle magic link (both styles)
+// 1) PKCE code
 (async function handleCodeFlow() {
   const code = qp('code');
-  const next = qp('next') || '';
   if (!code) return;
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) { msg('Login failed. Try again.', true); return; }
-  revealCopy(data?.session?.access_token || '');
-  clearUrlNoise(next);
+  const tok = data?.session?.access_token || '';
+  if (tok) {
+    tokenBox.value = tok; localStorage.setItem(LS_TOKEN, tok);
+    copyBtn.style.display = 'inline-block'; $('instructions').style.display = 'block';
+    showReturn(); msg('✅ Logged in. Press the button below to copy your token and return.');
+  }
+  clearUrlNoise();
 })();
 
-// 2) Implicit flow (#access_token=...&refresh_token=...)
+// 2) Implicit hash tokens
 (async function handleHashFlow() {
   const tokens = parseHashTokens();
   if (!tokens) return;
   const { error } = await supabase.auth.setSession(tokens);
   if (error) { msg('Login failed. Try again.', true); return; }
   const { data: sess } = await supabase.auth.getSession();
-  revealCopy(sess?.session?.access_token || '');
+  const tok = sess?.session?.access_token || '';
+  if (tok) {
+    tokenBox.value = tok; localStorage.setItem(LS_TOKEN, tok);
+    copyBtn.style.display = 'inline-block'; $('instructions').style.display = 'block';
+    showReturn(); msg('✅ Logged in. Press the button below to copy your token and return.');
+  }
   clearUrlNoise();
 })();
 
-// 3) Fallback: if an active session already exists on load, reveal copy
+// 3) Fallback: if session already active on load
 (async function onLoadSessionCheck() {
   const { data } = await supabase.auth.getSession();
-  if (data?.session?.access_token && !existingToken) {
-    revealCopy(data.session.access_token);
+  const tok = data?.session?.access_token || '';
+  if (tok && !existingToken) {
+    tokenBox.value = tok; localStorage.setItem(LS_TOKEN, tok);
+    copyBtn.style.display = 'inline-block'; $('instructions').style.display = 'block';
+    showReturn(); msg('✅ Logged in. Press the button below to copy your token and return.');
   }
 })();
 
-// ----- Refresh session (renew token) -----
+// --- Refresh session (optional helper)
 $('refreshSession')?.addEventListener('click', async () => {
-  const { data, error } = await supabase.auth.getSession(); // refresh if possible
+  const { data, error } = await supabase.auth.getSession();
   if (error) return msg(error.message, true);
-  if (!data?.session) return msg('No active session. Send magic link.', true);
-  revealCopy(data.session.access_token || '');
+  if (!data?.session) return msg('No active session. Send a magic link.', true);
+  const tok = data.session.access_token || '';
+  if (tok) {
+    tokenBox.value = tok; localStorage.setItem(LS_TOKEN, tok);
+    copyBtn.style.display = 'inline-block'; $('instructions').style.display = 'block';
+    showReturn(); msg('Session refreshed. Token updated.');
+  }
 });
 
-// ----- Copy token & return (only redirect after successful copy) -----
+// --- Copy & return (redirect only after successful copy)
 copyBtn?.addEventListener('click', async () => {
   const token = (tokenBox.value || '').trim();
   if (!token) return msg('No token to copy.', true);
-
   localStorage.setItem(LS_TOKEN, token);
 
   let copied = false;
-  if (canWriteClipboard()) {
-    try { await navigator.clipboard.writeText(token); copied = true; } catch {}
-  }
-
+  if (canWriteClipboard()) { try { await navigator.clipboard.writeText(token); copied = true; } catch {} }
   if (!copied) {
-    tokenBox.style.display = 'block';
-    toggleTokenLink.style.display = 'inline';
-    msg('Copy failed — token shown. Copy manually, then return to SlimBuddy.');
+    tokenBox.style.display = 'block'; toggleTokenLink.style.display = 'inline';
+    msg('Copy failed — token shown. Copy manually, then return to YourSlimBuddy.');
     return;
   }
-
   smartRedirectAfterCopy();
 });
 
-// ----- Toggle token visibility (optional) -----
+// --- Toggle token visibility
 toggleTokenLink?.addEventListener('click', (e) => {
   e.preventDefault();
   const isHidden = tokenBox.style.display === 'none' || tokenBox.style.display === '';
