@@ -6,39 +6,34 @@
   <title>YourSlimBuddy — Get Access Token</title>
   <meta http-equiv="Cache-Control" content="no-store" />
   <style>
-    :root {
-      --fg: #111; --muted: #666; --ok: #0a0; --err: #c00;
-      --bd: #e5e7eb; --bg: #fff; --btn: #111; --btnfg: #fff;
-    }
+    :root { --fg:#111; --muted:#666; --ok:#0a0; --err:#c00; --bd:#e5e7eb; --bg:#fff; --btn:#111; --btnfg:#fff; }
     * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); }
+    html, body { margin:0; padding:0; background:var(--bg); color:var(--fg); }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
-    .container { max-width: 680px; margin: 24px auto; padding: 0 16px; }
-    header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-    header img { width: 28px; height: 28px; border-radius: 6px; }
-    h1 { font-size: 1.25rem; margin: 0; }
-    .sub { color: var(--muted); margin: 4px 0 16px; }
-    .row { margin: 12px 0; }
-    label { font-weight: 600; display: block; margin-bottom: 6px; }
-    input[type="email"] { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--bd); font-size: 1rem; }
-    textarea { width: 100%; min-height: 120px; padding: 10px; border-radius: 10px; border: 1px solid var(--bd);
-               font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; display: none; }
-    .muted { color: var(--muted); font-size: 0.95rem; }
-    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    button { appearance: none; border: 1px solid var(--bd); border-radius: 12px; padding: 12px 14px;
-             background: var(--btn); color: var(--btnfg); font-weight: 600; cursor: pointer; width: 100%; }
-    button.secondary { background: #f5f5f5; color: var(--fg); }
-    #copyTokenBtn { display: none; }
-    #instructions { display: none; }
-    #toggleToken { display: none; font-size: 0.95rem; }
-    #status.ok { color: var(--ok); }
-    #status.err { color: var(--err); }
-    hr { border: 0; border-top: 1px solid var(--bd); margin: 16px 0; }
-    #fastReturn { display: none; background: #f6f7f9; border: 1px solid #dfe3e8; padding: 10px 12px; border-radius: 10px; margin: 12px 0; font-size: 0.95rem; }
-    #fastReturn a { margin-left: 8px; }
-    footer { margin: 32px 0 16px; text-align: center; color: var(--muted); font-size: 0.9rem; }
-    footer a { color: inherit; text-decoration: underline; }
-    @media (max-width: 480px) { .actions { grid-template-columns: 1fr; } }
+    .container { max-width:680px; margin:24px auto; padding:0 16px; }
+    header { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+    header img { width:28px; height:28px; border-radius:6px; }
+    h1 { font-size:1.25rem; margin:0; }
+    .sub { color:var(--muted); margin:4px 0 16px; }
+    .row { margin:12px 0; }
+    label { font-weight:600; display:block; margin-bottom:6px; }
+    input[type="email"] { width:100%; padding:12px; border-radius:10px; border:1px solid var(--bd); font-size:1rem; }
+    textarea { width:100%; min-height:120px; padding:10px; border-radius:10px; border:1px solid var(--bd);
+               font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; display:none; }
+    .muted { color:var(--muted); font-size:.95rem; }
+    .actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    button { appearance:none; border:1px solid var(--bd); border-radius:12px; padding:12px 14px; background:var(--btn); color:var(--btnfg); font-weight:600; cursor:pointer; width:100%; }
+    button.secondary { background:#f5f5f5; color:var(--fg); }
+    #copyTokenBtn { display:none; }
+    #instructions { display:none; }
+    #toggleToken { display:none; font-size:.95rem; }
+    #status.ok { color:var(--ok); }  #status.err { color:var(--err); }
+    hr { border:0; border-top:1px solid var(--bd); margin:16px 0; }
+    #fastReturn { display:none; background:#f6f7f9; border:1px solid #dfe3e8; padding:10px 12px; border-radius:10px; margin:12px 0; font-size:.95rem; }
+    #fastReturn a { margin-left:8px; }
+    footer { margin:32px 0 16px; text-align:center; color:var(--muted); font-size:.9rem; }
+    footer a { color:inherit; text-decoration:underline; }
+    @media (max-width:480px){ .actions{ grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
@@ -50,7 +45,11 @@
     <p class="sub">Get your access token</p>
 
     <section class="row">
-      <p class="muted">Enter your email, then tap <strong>Send Magic Link</strong>. The email comes from <strong>Supabase Auth</strong>.</p>
+      <!-- Helper text: email instructions + sender -->
+      <p id="emailHelper" class="muted">
+        Enter your email, then tap <strong>Send Magic Link</strong>.
+        The email comes from <strong>Supabase Auth</strong> (check spam).
+      </p>
       <label for="email">Email</label>
       <input id="email" type="email" placeholder="you@example.com" autocomplete="email" />
     </section>
@@ -60,19 +59,27 @@
       <button id="refreshSession" class="secondary">Refresh Session</button>
     </section>
 
-    <div id="status" class="row muted"></div>
+    <!-- Helper text: status area (dynamic). aria-live for accessibility + loading placeholder -->
+    <div id="status" class="row muted" aria-live="polite">Loading…</div>
     <hr/>
 
-    <div id="fastReturn" class="row">
+    <!-- Helper text: fast-path banner for returning users -->
+    <div id="fastReturn" class="row" aria-live="polite">
       Returning to SlimBuddy in <span id="fastSeconds">1</span>… <a href="#" id="cancelRedirect">Cancel</a>
     </div>
 
     <section class="row">
+      <!-- Primary action after login return -->
       <button id="copyTokenBtn">Copy Token & Return to SlimBuddy</button>
-      <div id="instructions" class="muted">If you’re not redirected automatically, switch back to SlimBuddy GPT and paste your token.</div>
+      <!-- Helper text: what to do after copy/redirect -->
+      <div id="instructions" class="muted">
+        If you’re not redirected automatically, switch back to SlimBuddy GPT and paste your token.
+      </div>
+      <!-- Helper text: shown only when we can't redirect -->
       <div id="copy-feedback" class="muted" style="display:none;"></div>
     </section>
 
+    <!-- Helper text: manual copy fallback -->
     <section class="row">
       <a id="toggleToken" href="#">Show token</a>
       <textarea id="tokenBox" readonly></textarea>
@@ -87,4 +94,3 @@
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>
-
