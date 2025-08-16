@@ -19,6 +19,7 @@ const toggleTokenLink = $('toggleToken');
 const firstTimeView = $('firstTimeView');
 const returnView = $('returnView');
 const subTitle = $('modeSubtitle');
+const openGptLink = $('openGptLink');
 
 function msg(text, isErr = false, flash = false) {
   if (!statusEl) return;
@@ -56,17 +57,6 @@ function clearUrlNoise() {
   window.history.replaceState({}, '', qs ? `${base}?${qs}` : base);
 }
 
-function smartRedirectAfterCopy() {
-  const qsReturnTo = qp('returnTo');
-  const ref = document.referrer;
-  if (qsReturnTo && isSafeReturnUrl(qsReturnTo)) return (window.location.href = qsReturnTo);
-  if (ref && isSafeReturnUrl(ref)) return (window.location.href = ref);
-  if (history.length > 1) return history.back();
-
-  const fb = $('copy-feedback');
-  if (fb) { fb.textContent = 'Token copied. Switch back to YourSlimBuddy GPT and paste it.'; fb.style.display = 'block'; }
-}
-
 function hasMagicLinkParams() {
   const code = qp('code') || '';
   const hash = (window.location.hash || '').toLowerCase();
@@ -75,36 +65,50 @@ function hasMagicLinkParams() {
 function canWriteClipboard() { return !!(navigator.clipboard && navigator.clipboard.writeText); }
 
 // --- Views
-function showFirstTime() { firstTimeView.style.display = 'block'; returnView.style.display = 'none'; subTitle.textContent = 'Log in to get your Access Token'; }
-function showReturn() { firstTimeView.style.display = 'none'; returnView.style.display = 'block'; subTitle.textContent = 'Copy your token & return to YourSlimBuddy'; }
+function showFirstTime() {
+  firstTimeView.style.display = 'block';
+  returnView.style.display = 'none';
+  subTitle.textContent = 'Log in to get your Access Token';
+}
+function showReturn() {
+  firstTimeView.style.display = 'none';
+  returnView.style.display = 'block';
+  subTitle.textContent = 'Copy your token & return to YourSlimBuddy';
+}
 
 // --- returnTo handling
 const returnTo = (() => {
   const q = qp('returnTo');
   return q && isSafeReturnUrl(q) ? q : '';
 })();
-
-// --- token cache for fast-path
-const LS_TOKEN = 'slimbuddy_jwt';
-let existingToken = localStorage.getItem(LS_TOKEN) || '';
-
-// If URL has ?mode=return, default to return view
-const forceReturnMode = qp('mode') === 'return';
-if (forceReturnMode) showReturn(); else showFirstTime();
-
-// If we have a token already, prep return UI
-if (existingToken) {
-  tokenBox.value = existingToken;
-  copyBtn.style.display = 'inline-block';
-  $('instructions').style.display = 'block';
-  if (!forceReturnMode) showReturn();
-  msg('✅ Found a previously saved token.');
+// expose optional open-in-new-tab link
+if (returnTo) {
+  openGptLink.href = returnTo;
+  openGptLink.style.display = 'inline-block';
 }
 
-// --- Fast return (only if not in a magic-link return AND copy succeeds)
+// --- First render: pick a view
+if (qp('mode') === 'return') showReturn(); else showFirstTime();
+
+// --- Hydrate from real Supabase session (not from localStorage)
+(async function hydrateFromSession() {
+  const { data } = await supabase.auth.getSession();
+  const tok = data?.session?.access_token || '';
+  if (!tok) { msg(''); return; } // clear "Loading…" and keep current view
+  tokenBox.value = tok;
+  localStorage.setItem('slimbuddy_jwt', tok); // keep for copy convenience
+  copyBtn.style.display = 'inline-block';
+  $('instructions').style.display = 'block';
+  showReturn();
+  msg('✅ You’re signed in. Press the button to copy your token and return.');
+})();
+
+// --- Fast return (disabled if handling magic link; and only if copy succeeds)
 (function maybeFastReturn() {
   if (hasMagicLinkParams()) return;
+  const existingToken = localStorage.getItem('slimbuddy_jwt') || '';
   if (!existingToken || !returnTo) return;
+
   const fastDiv = $('fastReturn');
   const fastSeconds = $('fastSeconds');
   const cancel = $('cancelRedirect');
@@ -126,7 +130,7 @@ if (existingToken) {
     fastSeconds.textContent = String(remaining);
     const timer = setInterval(() => {
       remaining -= 1;
-      if (remaining <= 0) { clearInterval(timer); window.location.href = returnTo; }
+      if (remaining <= 0) { clearInterval(timer); /* do NOT auto-open GPT to avoid new threads */ fastDiv.style.display='none'; }
       else fastSeconds.textContent = String(remaining);
     }, 1000);
     cancel.addEventListener('click', (e) => {
@@ -157,6 +161,7 @@ $('sendLink')?.addEventListener('click', async () => {
 });
 
 // --- Handle magic link (both styles)
+
 // 1) PKCE code
 (async function handleCodeFlow() {
   const code = qp('code');
@@ -165,7 +170,7 @@ $('sendLink')?.addEventListener('click', async () => {
   if (error) { msg('Login failed. Try again.', true); return; }
   const tok = data?.session?.access_token || '';
   if (tok) {
-    tokenBox.value = tok; localStorage.setItem(LS_TOKEN, tok);
+    tokenBox.value = tok; localStorage.setItem('slimbuddy_jwt', tok);
     copyBtn.style.display = 'inline-block'; $('instructions').style.display = 'block';
     showReturn(); msg('✅ Logged in. Press the button below to copy your token and return.');
   }
@@ -181,22 +186,11 @@ $('sendLink')?.addEventListener('click', async () => {
   const { data: sess } = await supabase.auth.getSession();
   const tok = sess?.session?.access_token || '';
   if (tok) {
-    tokenBox.value = tok; localStorage.setItem(LS_TOKEN, tok);
+    tokenBox.value = tok; localStorage.setItem('slimbuddy_jwt', tok);
     copyBtn.style.display = 'inline-block'; $('instructions').style.display = 'block';
     showReturn(); msg('✅ Logged in. Press the button below to copy your token and return.');
   }
   clearUrlNoise();
-})();
-
-// 3) Fallback: if session already active on load
-(async function onLoadSessionCheck() {
-  const { data } = await supabase.auth.getSession();
-  const tok = data?.session?.access_token || '';
-  if (tok && !existingToken) {
-    tokenBox.value = tok; localStorage.setItem(LS_TOKEN, tok);
-    copyBtn.style.display = 'inline-block'; $('instructions').style.display = 'block';
-    showReturn(); msg('✅ Logged in. Press the button below to copy your token and return.');
-  }
 })();
 
 // --- Refresh session (optional helper)
@@ -206,26 +200,32 @@ $('refreshSession')?.addEventListener('click', async () => {
   if (!data?.session) return msg('No active session. Send a magic link.', true);
   const tok = data.session.access_token || '';
   if (tok) {
-    tokenBox.value = tok; localStorage.setItem(LS_TOKEN, tok);
+    tokenBox.value = tok; localStorage.setItem('slimbuddy_jwt', tok);
     copyBtn.style.display = 'inline-block'; $('instructions').style.display = 'block';
     showReturn(); msg('Session refreshed. Token updated.');
   }
 });
 
-// --- Copy & return (redirect only after successful copy)
+// --- Copy & return (no auto-open; avoid new GPT threads)
 copyBtn?.addEventListener('click', async () => {
   const token = (tokenBox.value || '').trim();
   if (!token) return msg('No token to copy.', true);
-  localStorage.setItem(LS_TOKEN, token);
+  localStorage.setItem('slimbuddy_jwt', token);
 
   let copied = false;
-  if (canWriteClipboard()) { try { await navigator.clipboard.writeText(token); copied = true; } catch {} }
+  if (navigator.clipboard?.writeText) {
+    try { await navigator.clipboard.writeText(token); copied = true; } catch {}
+  }
+
   if (!copied) {
-    tokenBox.style.display = 'block'; toggleTokenLink.style.display = 'inline';
-    msg('Copy failed — token shown. Copy manually, then return to YourSlimBuddy.');
+    tokenBox.style.display = 'block';
+    toggleTokenLink.style.display = 'inline';
+    msg('Copy failed — token shown. Copy manually, then switch back to YourSlimBuddy.');
     return;
   }
-  smartRedirectAfterCopy();
+
+  const fb = $('copy-feedback');
+  if (fb) { fb.textContent = 'Token copied. Return to your original YourSlimBuddy chat and paste it.'; fb.style.display = 'block'; }
 });
 
 // --- Toggle token visibility
