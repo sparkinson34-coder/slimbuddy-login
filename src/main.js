@@ -20,6 +20,10 @@ const firstTimeView = $('firstTimeView');
 const returnView = $('returnView');
 const subTitle = $('modeSubtitle');
 const openGptLink = $('openGptLink');
+const signedInAs = $('signedInAs');
+const currentEmailEl = $('currentEmail');
+const signOutLink = $('signOutLink');
+const avatarEl = $('avatar');
 
 function msg(text, isErr = false, flash = false) {
   if (!statusEl) return;
@@ -81,29 +85,69 @@ const returnTo = (() => {
   const q = qp('returnTo');
   return q && isSafeReturnUrl(q) ? q : '';
 })();
-// expose optional open-in-new-tab link
 if (returnTo) {
   openGptLink.href = returnTo;
   openGptLink.style.display = 'inline-block';
 }
 
-// --- First render: pick a view
+// --- First render: pick a view (mode=return jumps straight to return view)
 if (qp('mode') === 'return') showReturn(); else showFirstTime();
+
+// --- Utility: set avatar initial + color
+function setAvatarFromEmail(email) {
+  if (!avatarEl) return;
+  const initial = (email && email[0] ? email[0] : '?').toUpperCase();
+  avatarEl.textContent = initial;
+
+  // tiny deterministic color by hashing email
+  let hash = 0;
+  for (let i = 0; i < (email || '').length; i++) hash = ((hash << 5) - hash) + email.charCodeAt(i), hash |= 0;
+  const hue = Math.abs(hash) % 360;
+  avatarEl.style.background = `hsl(${hue} 60% 45%)`;
+}
+
+// --- Show who is signed in (if any), based on REAL Supabase session
+async function paintSignedInUser() {
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data?.user) {
+    signedInAs.style.display = 'none';
+    currentEmailEl.textContent = '';
+    if (avatarEl) avatarEl.textContent = '';
+    return;
+  }
+  const email = data.user.email || '(unknown)';
+  currentEmailEl.textContent = email;
+  setAvatarFromEmail(email);
+  signedInAs.style.display = 'flex';
+}
 
 // --- Hydrate from real Supabase session (not from localStorage)
 (async function hydrateFromSession() {
   const { data } = await supabase.auth.getSession();
   const tok = data?.session?.access_token || '';
   if (!tok) { msg(''); return; } // clear "Loading…" and keep current view
+
   tokenBox.value = tok;
-  localStorage.setItem('slimbuddy_jwt', tok); // keep for copy convenience
+  localStorage.setItem('slimbuddy_jwt', tok); // for copy convenience only
   copyBtn.style.display = 'inline-block';
   $('instructions').style.display = 'block';
   showReturn();
+  await paintSignedInUser();
   msg('✅ You’re signed in. Press the button to copy your token and return.');
 })();
 
-// --- Fast return (disabled if handling magic link; and only if copy succeeds)
+// --- Sign out (switch account)
+signOutLink?.addEventListener('click', async (e) => {
+  e.preventDefault();
+  try { await supabase.auth.signOut(); } catch {}
+  localStorage.removeItem('slimbuddy_jwt');
+  tokenBox.value = '';
+  signedInAs.style.display = 'none';
+  showFirstTime();
+  msg('Signed out. Send a magic link to sign in.');
+});
+
+// --- Fast return (disabled if handling magic link; and only if copy succeeds; no auto-open GPT)
 (function maybeFastReturn() {
   if (hasMagicLinkParams()) return;
   const existingToken = localStorage.getItem('slimbuddy_jwt') || '';
@@ -121,16 +165,18 @@ if (qp('mode') === 'return') showReturn(); else showFirstTime();
       copyBtn.style.display = 'inline-block';
       $('instructions').style.display = 'block';
       showReturn();
+      await paintSignedInUser();
       msg('Tap “Copy Token & Return to YourSlimBuddy”. If needed, reveal token to copy manually.');
       return;
     }
     showReturn();
+    await paintSignedInUser();
     fastDiv.style.display = 'block';
     let remaining = 1;
     fastSeconds.textContent = String(remaining);
     const timer = setInterval(() => {
       remaining -= 1;
-      if (remaining <= 0) { clearInterval(timer); /* do NOT auto-open GPT to avoid new threads */ fastDiv.style.display='none'; }
+      if (remaining <= 0) { clearInterval(timer); fastDiv.style.display='none'; }
       else fastSeconds.textContent = String(remaining);
     }, 1000);
     cancel.addEventListener('click', (e) => {
@@ -172,7 +218,8 @@ $('sendLink')?.addEventListener('click', async () => {
   if (tok) {
     tokenBox.value = tok; localStorage.setItem('slimbuddy_jwt', tok);
     copyBtn.style.display = 'inline-block'; $('instructions').style.display = 'block';
-    showReturn(); msg('✅ Logged in. Press the button below to copy your token and return.');
+    showReturn(); await paintSignedInUser();
+    msg('✅ Logged in. Press the button below to copy your token and return.');
   }
   clearUrlNoise();
 })();
@@ -188,7 +235,8 @@ $('sendLink')?.addEventListener('click', async () => {
   if (tok) {
     tokenBox.value = tok; localStorage.setItem('slimbuddy_jwt', tok);
     copyBtn.style.display = 'inline-block'; $('instructions').style.display = 'block';
-    showReturn(); msg('✅ Logged in. Press the button below to copy your token and return.');
+    showReturn(); await paintSignedInUser();
+    msg('✅ Logged in. Press the button below to copy your token and return.');
   }
   clearUrlNoise();
 })();
@@ -202,7 +250,8 @@ $('refreshSession')?.addEventListener('click', async () => {
   if (tok) {
     tokenBox.value = tok; localStorage.setItem('slimbuddy_jwt', tok);
     copyBtn.style.display = 'inline-block'; $('instructions').style.display = 'block';
-    showReturn(); msg('Session refreshed. Token updated.');
+    showReturn(); await paintSignedInUser();
+    msg('Session refreshed. Token updated.');
   }
 });
 
@@ -226,12 +275,4 @@ copyBtn?.addEventListener('click', async () => {
 
   const fb = $('copy-feedback');
   if (fb) { fb.textContent = 'Token copied. Return to your original YourSlimBuddy chat and paste it.'; fb.style.display = 'block'; }
-});
-
-// --- Toggle token visibility
-toggleTokenLink?.addEventListener('click', (e) => {
-  e.preventDefault();
-  const isHidden = tokenBox.style.display === 'none' || tokenBox.style.display === '';
-  tokenBox.style.display = isHidden ? 'block' : 'none';
-  toggleTokenLink.textContent = isHidden ? 'Hide token' : 'Show token';
 });

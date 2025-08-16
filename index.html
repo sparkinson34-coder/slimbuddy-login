@@ -59,6 +59,16 @@
     .footer{ margin-top:20px; text-align:center; color:var(--muted); font-size:.9rem; }
     .footer a{ color:inherit; text-decoration:underline; }
     #openGptLink{ display:none; margin-top:8px; font-size:.95rem; }
+
+    /* signed-in status w/ avatar */
+    #signedInAs{ display:none; margin:8px 0 12px; align-items:center; gap:8px; }
+    .avatar{
+      width:24px; height:24px; border-radius:50%;
+      display:inline-flex; align-items:center; justify-content:center;
+      font-size:.8rem; font-weight:700; color:#fff; background:#666;
+      user-select:none;
+    }
+    #signOutLink{ margin-left:6px; }
     @media (max-width:900px){ .wrap{flex-direction:column;} .left{border-right:0; border-bottom:1px solid var(--bd);} }
   </style>
 </head>
@@ -97,13 +107,25 @@
 
         <!-- RETURN VIEW -->
         <div id="returnView" style="display:none;">
-          <div class="banner" id="fastReturn">Returning to YourSlimBuddy in <span id="fastSeconds">1</span>… <a href="#" id="cancelRedirect">Cancel</a></div>
+          <!-- who is signed in -->
+          <div id="signedInAs" class="helper">
+            <span id="avatar" class="avatar" aria-hidden="true"></span>
+            <span>Signed in as <strong id="currentEmail"></strong>.</span>
+            <a href="#" id="signOutLink">Not you? Sign out</a>
+          </div>
+
+          <div class="banner" id="fastReturn">
+            Returning to YourSlimBuddy in <span id="fastSeconds">1</span>…
+            <a href="#" id="cancelRedirect">Cancel</a>
+          </div>
+
           <div class="row">
             <button id="copyTokenBtn">Copy Token & Return to YourSlimBuddy</button>
             <a id="openGptLink" href="#" target="_blank" rel="noopener">Or open YourSlimBuddy in a new tab</a>
             <div id="instructions" class="helper">If you’re not redirected automatically, switch back to YourSlimBuddy GPT and paste your token.</div>
             <div id="copy-feedback" class="helper" style="display:none;"></div>
           </div>
+
           <div class="row">
             <a id="toggleToken" href="#">Show token</a>
             <textarea id="tokenBox" readonly></textarea>
@@ -123,4 +145,3 @@
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>
-
