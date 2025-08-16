@@ -6,138 +6,92 @@
   <title>YourSlimBuddy — Get Access Token</title>
   <meta http-equiv="Cache-Control" content="no-store" />
   <style>
-    :root {
-      --brand:#111; --brand-2:#f6f7f9; --fg:#111; --muted:#667085; --ok:#0a0; --err:#c00;
-      --bd:#e5e7eb; --bg:#fff; --btn:#111; --btnfg:#fff;
+    :root{
+      --fg:#0f172a; --muted:#64748b; --bd:#e2e8f0; --card:#ffffff; --bg:#f8fafc;
+      --primary:#2563eb; --primary-600:#1d4ed8; --ok:#16a34a; --err:#dc2626;
     }
     *{ box-sizing:border-box; }
-    html,body{ margin:0; padding:0; background:var(--bg); color:var(--fg); }
-    body{ font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
-    .wrap{ min-height:100vh; display:flex; }
-    .left{
-      flex:1; display:flex; align-items:center; justify-content:center; padding:32px;
-      background:linear-gradient(180deg,#fafafa,#f2f4f7); border-right:1px solid var(--bd);
-    }
-    .brand-card{
-      max-width:420px; text-align:center; padding:24px; border-radius:16px; border:1px solid var(--bd); background:#fff;
-      box-shadow:0 8px 24px rgba(17,17,17,.05);
-    }
-    .brand-card img{ width:56px; height:56px; border-radius:12px; margin-bottom:8px; }
-    .brand-card h1{ font-size:1.4rem; margin:0 0 6px; }
-    .brand-card p{ color:var(--muted); margin:0; }
-    .right{ flex:1; display:flex; align-items:center; justify-content:center; padding:32px; }
+    html,body{ margin:0; padding:0; background:var(--bg); color:var(--fg); font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
+    .wrap{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
     .card{
-      width:100%; max-width:460px; border:1px solid var(--bd); border-radius:16px; padding:24px; background:#fff;
-      box-shadow:0 8px 24px rgba(17,17,17,.06);
+      width:100%; max-width:520px; background:var(--card); border:1px solid var(--bd); border-radius:16px; padding:24px;
+      box-shadow:0 10px 30px rgba(15,23,42,.06);
     }
-    .title{ display:flex; align-items:center; gap:10px; margin-bottom:6px; }
-    .title img{ width:28px; height:28px; border-radius:6px; }
-    h2{ font-size:1.25rem; margin:0; }
-    .sub{ color:var(--muted); margin:4px 0 16px; }
-    label{ font-weight:600; display:block; margin:12px 0 6px; }
+    h1{ font-size:1.35rem; margin:0 0 4px; }
+    .sub{ color:var(--muted); margin:0 0 14px; }
+    .okline{ color:var(--ok); background:#ecfdf5; border:1px solid #a7f3d0; padding:10px 12px; border-radius:10px; margin:10px 0 14px; }
+    label{ font-weight:600; display:block; margin:8px 0 6px; }
     input[type="email"]{ width:100%; padding:12px; border-radius:12px; border:1px solid var(--bd); font-size:1rem; }
     .helper{ color:var(--muted); font-size:.95rem; margin-top:6px; }
     .row{ margin:16px 0; }
     button{
-      appearance:none; border:1px solid var(--bd); border-radius:12px; padding:12px 14px; background:var(--btn);
-      color:var(--btnfg); font-weight:700; cursor:pointer; width:100%;
+      width:100%; appearance:none; border:0; border-radius:12px; padding:12px 16px; font-weight:700; color:#fff;
+      background:var(--primary); cursor:pointer;
     }
-    button.secondary{ background:#f5f5f5; color:var(--fg); }
-    .actions{ display:flex; gap:10px; }
+    button:hover{ background:var(--primary-600); }
+    button.secondary{ background:#f1f5f9; color:var(--fg); border:1px solid var(--bd); }
     #status.ok{ color:var(--ok); } #status.err{ color:var(--err); } #status{ min-height:1.2em; }
     #copyTokenBtn{ display:none; }
-    #instructions{ display:none; color:var(--muted); }
+    #instructions{ display:none; }
     #toggleToken{ display:none; font-size:.95rem; }
     textarea{
-      width:100%; min-height:120px; padding:10px; border-radius:12px; border:1px solid var(--bd);
+      width:100%; min-height:110px; padding:10px; border-radius:12px; border:1px solid var(--bd);
       font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; display:none;
     }
-    .banner{
-      display:none; background:var(--brand-2); border:1px solid var(--bd); padding:10px 12px;
-      border-radius:12px; margin:12px 0; font-size:.95rem;
-    }
-    .footer{ margin-top:20px; text-align:center; color:var(--muted); font-size:.9rem; }
+    .signin{ display:none; color:var(--muted); margin-top:6px; }
+    .footer{ margin-top:16px; text-align:center; color:var(--muted); font-size:.9rem; }
     .footer a{ color:inherit; text-decoration:underline; }
-    #openGptLink{ display:none; margin-top:8px; font-size:.95rem; }
-
-    /* signed-in status w/ avatar */
-    #signedInAs{ display:none; margin:8px 0 12px; align-items:center; gap:8px; }
-    .avatar{
-      width:24px; height:24px; border-radius:50%;
-      display:inline-flex; align-items:center; justify-content:center;
-      font-size:.8rem; font-weight:700; color:#fff; background:#666;
-      user-select:none;
-    }
-    #signOutLink{ margin-left:6px; }
-    @media (max-width:900px){ .wrap{flex-direction:column;} .left{border-right:0; border-bottom:1px solid var(--bd);} }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <aside class="left">
-      <div class="brand-card">
-        <img src="/logo.svg" alt="YourSlimBuddy" onerror="this.style.display='none'">
-        <h1>YourSlimBuddy</h1>
-        <p>Your personal AI weight-loss companion.</p>
+    <main class="card">
+      <h1>YourSlimBuddy</h1>
+      <p class="sub">Your personal AI weight-loss companion.</p>
+
+      <!-- GREEN one-liner guidance -->
+      <div id="okline" class="okline" style="display:none;">
+        ✅ Click <strong>Copy Your SlimBuddy Token</strong> below, then close this window and return to YourSlimBuddy GPT.
       </div>
-    </aside>
 
-    <main class="right">
-      <div class="card">
-        <div class="title">
-          <img src="/logo.svg" alt="" onerror="this.style.display='none'">
-          <h2>Welcome to YourSlimBuddy</h2>
+      <!-- FIRST-TIME VIEW -->
+      <div id="firstTimeView">
+        <label for="email">Email</label>
+        <input id="email" type="email" placeholder="you@example.com" autocomplete="email" />
+        <div class="helper">
+          Enter your email, then click <strong>Send Magic Link</strong>. The email comes from <strong>YourSlimBuddy (Supabase Auth)</strong>.
         </div>
-        <p class="sub" id="modeSubtitle">Log in to get your Access Token</p>
+        <div class="row">
+          <button id="sendLink">Send Magic Link</button>
+        </div>
+        <div class="row">
+          <button id="refreshSession" class="secondary">Refresh Session</button>
+        </div>
+      </div>
 
-        <!-- FIRST-TIME VIEW -->
-        <div id="firstTimeView">
-          <label for="email">Email</label>
-          <input id="email" type="email" placeholder="you@example.com" autocomplete="email" />
-          <div class="helper">
-            Enter your email, then click <strong>Send Magic Link</strong>.
-            The email comes from <strong>YourSlimBuddy via Supabase Auth</strong> (check spam).
-          </div>
-
-          <div class="row actions">
-            <button id="sendLink">Send Magic Link</button>
-            <button id="refreshSession" class="secondary">Refresh Session</button>
-          </div>
+      <!-- RETURN VIEW -->
+      <div id="returnView" style="display:none;">
+        <div id="signedInAs" class="signin">
+          ✅ Signed in as <strong id="currentEmail"></strong>. <a href="#" id="signOutLink">Not you? Sign out</a>
         </div>
 
-        <!-- RETURN VIEW -->
-        <div id="returnView" style="display:none;">
-          <!-- who is signed in -->
-          <div id="signedInAs" class="helper">
-            <span id="avatar" class="avatar" aria-hidden="true"></span>
-            <span>Signed in as <strong id="currentEmail"></strong>.</span>
-            <a href="#" id="signOutLink">Not you? Sign out</a>
-          </div>
-
-          <div class="banner" id="fastReturn">
-            Returning to YourSlimBuddy in <span id="fastSeconds">1</span>…
-            <a href="#" id="cancelRedirect">Cancel</a>
-          </div>
-
-          <div class="row">
-            <button id="copyTokenBtn">Copy Token & Return to YourSlimBuddy</button>
-            <a id="openGptLink" href="#" target="_blank" rel="noopener">Or open YourSlimBuddy in a new tab</a>
-            <div id="instructions" class="helper">If you’re not redirected automatically, switch back to YourSlimBuddy GPT and paste your token.</div>
-            <div id="copy-feedback" class="helper" style="display:none;"></div>
-          </div>
-
-          <div class="row">
-            <a id="toggleToken" href="#">Show token</a>
-            <textarea id="tokenBox" readonly></textarea>
-          </div>
+        <div class="row">
+          <button id="copyTokenBtn">Copy Your SlimBuddy Token</button>
+          <div id="instructions" class="helper">After copying, close this window and return to YourSlimBuddy GPT to paste your token.</div>
+          <div id="copy-feedback" class="helper" style="display:none;"></div>
         </div>
 
-        <div id="status" aria-live="polite" class="helper">Loading…</div>
-
-        <div class="footer">
-          <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a> |
-          <a href="terms.html" target="_blank" rel="noopener">Terms of Service</a>
+        <div class="row">
+          <a id="toggleToken" href="#">Show token</a>
+          <textarea id="tokenBox" readonly></textarea>
         </div>
+      </div>
+
+      <div id="status" aria-live="polite" class="helper"></div>
+
+      <div class="footer">
+        <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a> |
+        <a href="terms.html" target="_blank" rel="noopener">Terms of Service</a>
       </div>
     </main>
   </div>
