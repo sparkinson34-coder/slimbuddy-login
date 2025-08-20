@@ -1,24 +1,21 @@
-// src/main.js
-// YourSlimBuddy Connect — Netlify frontend
-// - Sends Supabase magic link
-// - After login, calls backend /api/connect/issue to mint a short Connect Key
-// - Lets user copy key and jump back to GPT (returnTo param)
+// src/main.js — YourSlimBuddy Connect (Netlify, Vite)
+// - Magic link sign-in with Supabase
+// - Calls Railway backend /api/connect/issue to mint short Connect Key
+// - Copies key and returns user to ChatGPT (returnTo)
 
 import { createClient } from '@supabase/supabase-js';
 
-// ---- Config from Vite .env (do NOT hardcode secrets) ----
-// .env (Netlify):
-// VITE_SUPABASE_URL=... (Project URL)
-// VITE_SUPABASE_ANON_KEY=... (anon key)
+// ---- Config (from Vite .env) ----
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Optional: set in Netlify as VITE_BACKEND_BASE=https://... (falls back to prod)
+const BACKEND_BASE = import.meta.env.VITE_BACKEND_BASE || 'https://slimbuddy-backend-production.up.railway.app';
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true },
 });
 
-// Backend base (Railway)
-const BACKEND_BASE = 'https://slimbuddy-backend-production.up.railway.app';
-
+// returnTo -> back to GPT
 const qs = new URLSearchParams(window.location.search);
 const returnTo = qs.get('returnTo') || 'https://chatgpt.com/';
 
@@ -43,12 +40,14 @@ const keyMsg = document.getElementById('keyMsg');
 // ---- Helpers ----
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const show = (el, v=true) => { el.hidden = !v; el.style.display = v ? '' : 'none'; };
+const clear = (el) => { if (el) el.textContent = ''; };
 
 function setEmailPhase() {
   show(stepEmail, true);
   show(stepKey, false);
   show(emailPill, true);
   emailPill.textContent = 'Signed out';
+  clear(emailMsg);
 }
 
 function setKeyPhase(email) {
@@ -56,6 +55,9 @@ function setKeyPhase(email) {
   show(stepKey, true);
   signedPill.textContent = 'Signed in';
   signedDetail.textContent = email ? `Signed in as ${email}` : 'Signed in';
+  show(keyWrap, false);
+  regenKeyBtn.style.display = 'none';
+  clear(keyMsg);
 }
 
 async function copyToClipboard(text) {
@@ -70,52 +72,35 @@ async function copyToClipboard(text) {
 function renderKey(key) {
   connectKeyEl.textContent = key;
   show(keyWrap, true);
-  keyMsg.textContent = 'Key generated. Paste it into ChatGPT when prompted for “API Key”.';
+  keyMsg.innerHTML = 'Key generated. Copy it, return to ChatGPT, and paste when asked for <b>API Key</b>.';
+  regenKeyBtn.style.display = 'inline-block';
 }
 
 // ---- Auth state & initial load ----
 async function init() {
-  // Supabase handles magic-link redirects automatically; we just read session.
   const { data: { session } } = await supabase.auth.getSession();
-
-  if (!session) {
-    setEmailPhase();
-  } else {
-    const email = session.user?.email || '';
-    setKeyPhase(email);
-  }
-
-  // Keep UI in sync with future auth changes
-  supabase.auth.onAuthStateChange(async (_event, session) => {
-    if (session) {
-      const email = session.user?.email || '';
-      setKeyPhase(email);
-    } else {
-      setEmailPhase();
-    }
+  if (!session) setEmailPhase(); else setKeyPhase(session.user?.email || '');
+  supabase.auth.onAuthStateChange((_evt, session2) => {
+    if (session2) setKeyPhase(session2.user?.email || '');
+    else setEmailPhase();
   });
 }
 
 // ---- Events ----
 sendLinkBtn.addEventListener('click', async () => {
   const email = (emailInput.value || '').trim();
-  if (!email) {
-    emailMsg.textContent = 'Please enter a valid email address.';
-    return;
-  }
+  if (!email) { emailMsg.textContent = 'Please enter a valid email.'; return; }
   emailMsg.textContent = 'Sending magic link…';
   sendLinkBtn.disabled = true;
-
   try {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        // After user clicks the email link, they should land back here
         emailRedirectTo: window.location.origin + window.location.pathname + window.location.search,
       },
     });
     if (error) throw error;
-    emailMsg.innerHTML = 'Magic link sent. Check your inbox (sender: Supabase Auth).';
+    emailMsg.innerHTML = 'Magic link sent. Check your inbox (sender: <i>Supabase Auth</i>).';
   } catch (e) {
     emailMsg.textContent = `Error: ${e.message || 'Could not send link.'}`;
   } finally {
@@ -126,30 +111,24 @@ sendLinkBtn.addEventListener('click', async () => {
 issueKeyBtn.addEventListener('click', async () => {
   keyMsg.textContent = '';
   issueKeyBtn.disabled = true;
-
   try {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) {
-      keyMsg.textContent = 'You are not signed in. Please request a magic link first.';
-      issueKeyBtn.disabled = false;
-      return;
-    }
+    const token = session?.access_token;
+    if (!token) { keyMsg.textContent = 'You are not signed in. Please use the magic link first.'; return; }
 
     const resp = await fetch(`${BACKEND_BASE}/api/connect/issue`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${session.access_token}` },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      },
     });
-
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
       throw new Error(err.error || `Issue failed (${resp.status})`);
     }
-
     const payload = await resp.json();
-    const key = payload.connect_key;
-    renderKey(key);
-    regenKeyBtn.style.display = 'inline-block';
-    keyMsg.innerHTML = 'Copy your key, then return to ChatGPT and paste it when prompted for <b>API Key</b>.';
+    renderKey(payload.connect_key);
   } catch (e) {
     keyMsg.textContent = `Error: ${e.message || 'Unable to generate key.'}`;
   } finally {
@@ -157,28 +136,21 @@ issueKeyBtn.addEventListener('click', async () => {
   }
 });
 
-regenKeyBtn.addEventListener('click', () => {
-  // Optional: you could call a revoke+issue endpoint. For now we just re-issue by clicking Generate again.
-  issueKeyBtn.click();
-});
+regenKeyBtn.addEventListener('click', () => issueKeyBtn.click());
 
 copyKeyBtn.addEventListener('click', async () => {
   const key = connectKeyEl.textContent || '';
   if (!key) return;
-
-  const ok = await copyToClipboard(key);
-  keyMsg.textContent = ok ? 'Connect Key copied.' : 'Copy failed — please copy manually.';
+  keyMsg.textContent = (await copyToClipboard(key))
+    ? 'Connect Key copied.'
+    : 'Copy failed — please copy manually.';
 });
 
 returnBtn.addEventListener('click', async () => {
-  // Tiny visual feedback
   returnBtn.disabled = true;
-  await sleep(200);
-  try {
-    window.location.assign(returnTo);
-  } finally {
-    returnBtn.disabled = false;
-  }
+  await sleep(150);
+  try { window.location.assign(returnTo); }
+  finally { returnBtn.disabled = false; }
 });
 
 // ---- Go ----
