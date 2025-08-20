@@ -3,99 +3,112 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>YourSlimBuddy — Get Access Token</title>
-  <meta http-equiv="Cache-Control" content="no-store" />
+  <title>YourSlimBuddy — Connect</title>
+  <meta name="description" content="Get your YourSlimBuddy Connect Key to link ChatGPT with your account." />
+  <link rel="icon" href="/favicon.ico" />
   <style>
-    :root{
-      --fg:#0f172a; --muted:#64748b; --bd:#e2e8f0; --card:#ffffff; --bg:#f8fafc;
-      --primary:#2563eb; --primary-600:#1d4ed8; --ok:#16a34a; --err:#dc2626;
+    :root {
+      --bg: #0b1220;      /* deep navy */
+      --card: #121a2b;   /* slightly lighter */
+      --text: #e6eefc;
+      --muted: #a9b2c7;
+      --brand: #2b6fff;  /* blue CTA */
+      --brand-600: #1f57cc;
+      --ok: #22c55e;     /* green accent */
+      --warn: #f59e0b;
+      --border: #263148;
     }
-    *{ box-sizing:border-box; }
-    html,body{ margin:0; padding:0; background:var(--bg); color:var(--fg); font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
-    .wrap{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
-    .card{
-      width:100%; max-width:520px; background:var(--card); border:1px solid var(--bd); border-radius:16px; padding:24px;
-      box-shadow:0 10px 30px rgba(15,23,42,.06);
+    html, body {
+      margin: 0; padding: 0; background: var(--bg); color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
     }
-    h1{ font-size:1.35rem; margin:0 0 4px; }
-    .sub{ color:var(--muted); margin:0 0 14px; }
-    .okline{ color:var(--ok); background:#ecfdf5; border:1px solid #a7f3d0; padding:10px 12px; border-radius:10px; margin:10px 0 14px; }
-    label{ font-weight:600; display:block; margin:8px 0 6px; }
-    input[type="email"]{ width:100%; padding:12px; border-radius:12px; border:1px solid var(--bd); font-size:1rem; }
-    .helper{ color:var(--muted); font-size:.95rem; margin-top:6px; }
-    .row{ margin:16px 0; }
-    button{
-      width:100%; appearance:none; border:0; border-radius:12px; padding:12px 16px; font-weight:700; color:#fff;
-      background:var(--primary); cursor:pointer;
+    .wrap {
+      min-height: 100dvh; display: grid; place-items: center; padding: 24px;
     }
-    button:hover{ background:var(--primary-600); }
-    button.secondary{ background:#f1f5f9; color:var(--fg); border:1px solid var(--bd); }
-    #status.ok{ color:var(--ok); } #status.err{ color:var(--err); } #status{ min-height:1.2em; }
-    #copyTokenBtn{ display:none; }
-    #instructions{ display:none; }
-    #toggleToken{ display:none; font-size:.95rem; }
-    textarea{
-      width:100%; min-height:110px; padding:10px; border-radius:12px; border:1px solid var(--bd);
-      font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; display:none;
+    .card {
+      width: 100%; max-width: 560px; background: var(--card);
+      border: 1px solid var(--border); border-radius: 16px; padding: 22px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
     }
-    .signin{ display:none; color:var(--muted); margin-top:6px; }
-    .footer{ margin-top:16px; text-align:center; color:var(--muted); font-size:.9rem; }
-    .footer a{ color:inherit; text-decoration:underline; }
+    h1 { font-size: 1.25rem; margin: 0 0 10px; display: flex; align-items:center; gap:10px; }
+    .logo-dot { width: 10px; height:10px; border-radius:999px; background: var(--ok); box-shadow: 0 0 12px var(--ok); }
+    .muted { color: var(--muted); font-size: .95rem; }
+    .section { margin-top: 16px; }
+    .field { display:flex; gap:8px; margin-top:10px; }
+    input[type="email"] {
+      flex:1; font-size: 1rem; padding: 12px 14px; border-radius: 10px;
+      border: 1px solid var(--border); background: #0d1526; color: var(--text);
+      outline: none;
+    }
+    button {
+      appearance:none; border: none; border-radius: 10px; padding: 12px 14px;
+      background: var(--brand); color: white; font-weight: 600; cursor: pointer;
+    }
+    button:hover { background: var(--brand-600); }
+    .pill {
+      display:inline-flex; align-items:center; gap:8px; padding:8px 10px; border-radius: 999px;
+      background: #0e1a31; border: 1px solid var(--border); font-size: .9rem;
+    }
+    .key-box {
+      display:flex; align-items:center; justify-content: space-between;
+      gap:12px; margin-top:12px; padding:12px; border:1px dashed var(--border);
+      border-radius: 10px; background: #0c1427; word-break:break-all;
+    }
+    .row { display:flex; gap:10px; flex-wrap: wrap; }
+    .row > button { flex:1 0 160px; }
+    .fine { font-size: .85rem; color: var(--muted); }
+    .center { text-align:center; }
+    .ok { color: var(--ok); }
+    .warn { color: var(--warn); }
+    .hr { height:1px; background: var(--border); margin: 16px 0; border:0; }
+    footer { margin-top: 16px; text-align:center; font-size: .85rem; color: var(--muted); }
+    footer a { color: var(--muted); text-decoration: underline; }
   </style>
+  <script type="module" src="/src/main.js"></script>
 </head>
 <body>
   <div class="wrap">
-    <main class="card">
-      <h1>YourSlimBuddy</h1>
-      <p class="sub">Your personal AI weight-loss companion.</p>
+    <div class="card" id="app">
+      <h1><span class="logo-dot" aria-hidden="true"></span> Welcome to YourSlimBuddy Connect</h1>
+      <p class="muted">Link ChatGPT to your account with a short, secure Connect Key.</p>
 
-      <!-- GREEN one-liner guidance -->
-      <div id="okline" class="okline" style="display:none;">
-        ✅ Click <strong>Copy Your SlimBuddy Token</strong> below, then close this window and return to YourSlimBuddy GPT.
+      <!-- STEP 1: Request magic link -->
+      <div id="step-email" class="section">
+        <div class="pill" id="email-pill" hidden>Signed out</div>
+        <p class="fine">Enter your email address and we’ll send you a sign-in link.</p>
+        <div class="field">
+          <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com" />
+          <button id="sendLinkBtn">Send magic link</button>
+        </div>
+        <p id="emailMsg" class="fine"></p>
       </div>
 
-      <!-- FIRST-TIME VIEW -->
-      <div id="firstTimeView">
-        <label for="email">Email</label>
-        <input id="email" type="email" placeholder="you@example.com" autocomplete="email" />
-        <div class="helper">
-          Enter your email, then click <strong>Send Magic Link</strong>. The email comes from <strong>YourSlimBuddy (Supabase Auth)</strong>.
-        </div>
+      <!-- STEP 2: After login, issue Connect Key -->
+      <div id="step-key" class="section" hidden>
+        <div class="pill" id="signedPill">Signed in</div>
+        <p class="fine" id="signedDetail"></p>
+
+        <div class="hr"></div>
+
+        <p class="muted">Click **Generate Key** to create your Connect Key. Then copy it and return to YourSlimBuddy GPT.</p>
         <div class="row">
-          <button id="sendLink">Send Magic Link</button>
+          <button id="issueKeyBtn">Generate key</button>
+          <button id="regenKeyBtn" style="display:none;">Regenerate key</button>
         </div>
-        <div class="row">
-          <button id="refreshSession" class="secondary">Refresh Session</button>
+        <div id="keyWrap" class="key-box" hidden>
+          <span id="connectKey">SB-XXXX-XXXX-XXXX</span>
+          <div class="row" style="gap:8px;">
+            <button id="copyKeyBtn" title="Copy Connect Key">Copy</button>
+            <button id="returnBtn" title="Return to YourSlimBuddy">Return</button>
+          </div>
         </div>
+        <p id="keyMsg" class="fine center"></p>
       </div>
 
-      <!-- RETURN VIEW -->
-      <div id="returnView" style="display:none;">
-        <div id="signedInAs" class="signin">
-          ✅ Signed in as <strong id="currentEmail"></strong>. <a href="#" id="signOutLink">Not you? Sign out</a>
-        </div>
-
-        <div class="row">
-          <button id="copyTokenBtn">Copy Your SlimBuddy Token</button>
-          <div id="instructions" class="helper">After copying, close this window and return to YourSlimBuddy GPT to paste your token.</div>
-          <div id="copy-feedback" class="helper" style="display:none;"></div>
-        </div>
-
-        <div class="row">
-          <a id="toggleToken" href="#">Show token</a>
-          <textarea id="tokenBox" readonly></textarea>
-        </div>
-      </div>
-
-      <div id="status" aria-live="polite" class="helper"></div>
-
-      <div class="footer">
-        <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a> |
-        <a href="terms.html" target="_blank" rel="noopener">Terms of Service</a>
-      </div>
-    </main>
+      <footer>
+        <a href="/privacy.html">Privacy</a> • <a href="/terms.html">Terms</a>
+      </footer>
+    </div>
   </div>
-
-  <script type="module" src="/src/main.js"></script>
 </body>
 </html>
