@@ -5,6 +5,26 @@
 
 import { createClient } from '@supabase/supabase-js';
 
+// --- Handle Supabase magic-link hash (#access_token, #refresh_token) ---
+(async () => {
+  const hash = new URLSearchParams(window.location.hash.slice(1));
+  const access_token  = hash.get('access_token');
+  const refresh_token = hash.get('refresh_token');
+
+  if (access_token && refresh_token) {
+    // Create a session from the tokens in the hash
+    const { data, error } = await supabase.auth.setSession({
+      access_token,
+      refresh_token,
+    });
+    // Clean the URL (remove the fragment so it doesn't confuse future loads)
+    history.replaceState({}, document.title, location.pathname + location.search);
+    if (error) {
+      console.error('setSession error:', error);
+    }
+  }
+})();
+
 // ---- Environment (Vite injects these at build time)
 const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
