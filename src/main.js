@@ -167,6 +167,19 @@ copyBtn.addEventListener('click', async () => {
   msg.textContent = 'Copied. Paste this key in YourSlimBuddy GPT.';
 });
 
+// Optional: show a debug button only if ?debug=1 is present
+const params = new URLSearchParams(location.search);
+if (params.get('debug') === '1') {
+  const dbgBtn = document.createElement('button');
+  dbgBtn.className = 'btn';
+  dbgBtn.textContent = 'Show session token (debug)';
+  document.getElementById('signedIn').appendChild(dbgBtn);
+  dbgBtn.addEventListener('click', async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    alert(session?.access_token ? session.access_token : 'No session');
+  });
+}
+
 // ---- Boot
 if (supabase) {
   supabase.auth.onAuthStateChange(() => refreshUI());
