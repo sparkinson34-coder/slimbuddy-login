@@ -5,112 +5,80 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>YourSlimBuddy — Connect</title>
   <style>
-    :root {
-      --bg: #f7f8fa;
-      --card: #ffffff;
-      --text: #222;
-      --muted: #6b7280;
-      --primary: #2563eb;
-      --primary-contrast: #fff;
-      --border: #e5e7eb;
-      --success: #16a34a;
-      --danger: #b91c1c;
-      --radius: 16px;
+    :root{
+      --bg:#f7f8fb;--card:#fff;--text:#111827;--muted:#6b7280;
+      --border:#e5e7eb;--primary:#2563eb;--success:#15803d;--danger:#b91c1c;
+      --radius:16px
     }
-    html, body {
-      margin: 0; padding: 0;
-      background: var(--bg); color: var(--text);
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-    }
-    .container {
-      max-width: 780px; margin: 48px auto; padding: 0 16px;
-    }
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: 0 6px 24px rgba(0,0,0,0.06);
-      padding: 28px;
-    }
-    h1 {
-      margin: 0 0 8px; font-size: 28px;
-    }
-    p.lead {
-      margin: 6px 0 18px; color: var(--muted);
-    }
-    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-    .row > * { flex: 0 0 auto; }
-    .pill {
-      background: #eef2ff; color: #3730a3;
-      padding: 6px 10px; border-radius: 999px; font-size: 14px; border: 1px solid #c7d2fe;
-    }
-    .btn {
-      appearance: none; border: 1px solid var(--border);
-      padding: 10px 14px; border-radius: 10px;
-      background: #fff; color: var(--text); cursor: pointer;
-      font-weight: 600;
-    }
-    .btn.primary {
-      background: var(--primary); color: var(--primary-contrast); border-color: transparent;
-    }
-    .btn:disabled { opacity: .6; cursor: not-allowed; }
-    .muted { color: var(--muted); font-size: 14px; }
-    .divider { height: 1px; background: var(--border); margin: 20px 0; }
-    .stack { display: grid; gap: 12px; }
-    .kbd {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      background: #f3f4f6; border: 1px solid var(--border);
-      padding: 8px 10px; border-radius: 8px; font-size: 14px; word-break: break-all;
-    }
-    .hint { color: var(--muted); font-size: 13px; }
-    .ok    { color: var(--success); }
-    .error { color: var(--danger); }
-    .space { height: 8px; }
-    a.link { color: var(--primary); text-decoration: none; font-weight: 600; }
-    a.link:hover { text-decoration: underline; }
-    footer { text-align: center; margin: 28px 0; color: var(--muted); font-size: 13px; }
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+      font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+    .container{max-width:780px;margin:40px auto;padding:0 16px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+      box-shadow:0 8px 24px rgba(0,0,0,.06);padding:24px}
+    h1{margin:0 0 8px;font-size:28px}
+    p.lead{margin:6px 0 18px;color:var(--muted)}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .pill{background:#eef2ff;border:1px solid #c7d2fe;color:#3730a3;
+      padding:6px 10px;border-radius:999px;font-size:14px}
+    .ok{color:var(--success)} .err{color:var(--danger)}
+    .grid{display:grid;gap:12px}
+    .divider{height:1px;background:var(--border);margin:18px 0}
+    .btn{appearance:none;border:1px solid var(--border);background:#fff;
+      padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600}
+    .btn.primary{background:var(--primary);color:#fff;border-color:transparent}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+    input[type="email"]{width:100%;padding:12px;border:1px solid var(--border);
+      border-radius:10px;font-size:16px}
+    .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+      background:#f3f4f6;border:1px solid var(--border);padding:10px;border-radius:8px;word-break:break-all}
+    .hint{color:var(--muted);font-size:13px}
+    .footer{display:flex;gap:16px;margin-top:8px}
+    .link{color:var(--primary);text-decoration:none;font-weight:600}
+    .link:hover{text-decoration:underline}
   </style>
 </head>
 <body>
   <div class="container">
     <div class="card">
       <h1>YourSlimBuddy Connect</h1>
-      <p class="lead">Link ChatGPT to your account with a short, secure <strong>Connect Key</strong>.</p>
+      <p class="lead">Link ChatGPT to your account using a short, secure <strong>Connect Key</strong>.</p>
 
-      <div id="authRow" class="row">
-        <span id="statusDot" class="pill">• Connecting…</span>
+      <div class="row" id="statusRow">
+        <span id="statusPill" class="pill">● Connecting…</span>
         <span id="emailPill" class="pill" style="display:none;"></span>
         <button id="logoutBtn" class="btn" style="display:none;">Sign out</button>
       </div>
 
       <div class="divider"></div>
 
-      <div class="stack">
+      <!-- Signed OUT -->
+      <div id="signedOut" class="grid" style="display:none;">
+        <input id="emailInput" type="email" placeholder="Enter your email" autocomplete="email" />
         <button id="sendLinkBtn" class="btn">Send magic link</button>
-        <button id="showTokenBtn" class="btn">Show session token (debug)</button>
-        <div id="tokenBox" class="kbd" style="display:none;"></div>
-        <div class="hint">Use the magic link from your email to sign in. We never show your JWT in normal flow — ChatGPT only needs the short Connect Key below.</div>
+        <div class="hint">We’ll email you a one-time link to sign in. No password required.</div>
       </div>
 
-      <div class="divider"></div>
-
-      <div class="stack">
-        <button id="genKeyBtn" class="btn primary" disabled>Generate Key</button>
-        <div id="keyBox" class="kbd" style="display:none;"></div>
+      <!-- Signed IN -->
+      <div id="signedIn" class="grid" style="display:none;">
+        <button id="genKeyBtn" class="btn primary" disabled>Generate Connect Key</button>
+        <div id="keyBox" class="kbd" style="display:none"></div>
         <div class="row">
-          <button id="copyBtn" class="btn" disabled>Copy</button>
-          <button id="returnBtn" class="btn" disabled>Return to YourSlimBuddy</button>
+          <button id="copyBtn" class="btn" disabled>Copy Key</button>
         </div>
-        <div id="msg" class="muted"></div>
+        <div id="msg" class="hint"></div>
+      </div>
+
+      <div id="debugBlock" class="grid" style="display:none;">
+        <button id="showTokenBtn" class="btn">Show session token (debug)</button>
+        <div id="tokenBox" class="kbd" style="display:none"></div>
       </div>
 
       <div class="divider"></div>
-      <div class="stack">
-        <a class="link" id="privacy" href="/privacy.html" target="_blank" rel="noreferrer">Privacy</a>
-        <a class="link" id="terms" href="/terms.html" target="_blank" rel="noreferrer">Terms</a>
+      <div class="footer">
+        <a class="link" href="/privacy.html" target="_blank" rel="noreferrer">Privacy</a>
+        <a class="link" href="/terms.html" target="_blank" rel="noreferrer">Terms</a>
       </div>
     </div>
-    <footer>Having trouble? Re-send a magic link, sign in, then press <em>Generate Key</em>.</footer>
   </div>
 
   <script type="module" src="/src/main.js"></script>

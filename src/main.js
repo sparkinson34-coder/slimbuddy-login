@@ -5,142 +5,167 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// ---- Env (Netlify) ---------------------------------------------------------
+// ── Env (Netlify) ─────────────────────────────────────────────────────────────
 const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const BACKEND_BASE  = import.meta.env.VITE_BACKEND_BASE; // e.g. https://slimbuddy-backend-production.up.railway.app
+
 if (!SUPABASE_URL || !SUPABASE_ANON || !BACKEND_BASE) {
   console.error('Missing env: VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY / VITE_BACKEND_BASE');
 }
 
+// Supabase client: detectSessionInUrl=true is critical for magic-link return
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 });
 
-// ---- UI elements -----------------------------------------------------------
-const statusDot   = document.getElementById('statusDot');
-const emailPill   = document.getElementById('emailPill');
-const logoutBtn   = document.getElementById('logoutBtn');
+// ── Elements ──────────────────────────────────────────────────────────────────
+const statusPill   = document.getElementById('statusPill');
+const emailPill    = document.getElementById('emailPill');
+const logoutBtn    = document.getElementById('logoutBtn');
 
-const sendLinkBtn = document.getElementById('sendLinkBtn');
-const showTokenBtn= document.getElementById('showTokenBtn');
-const tokenBox    = document.getElementById('tokenBox');
+const signedOut    = document.getElementById('signedOut');
+const emailInput   = document.getElementById('emailInput');
+const sendLinkBtn  = document.getElementById('sendLinkBtn');
 
-const genKeyBtn   = document.getElementById('genKeyBtn');
-const keyBox      = document.getElementById('keyBox');
-const copyBtn     = document.getElementById('copyBtn');
-const returnBtn   = document.getElementById('returnBtn');
-const msg         = document.getElementById('msg');
+const signedIn     = document.getElementById('signedIn');
+const genKeyBtn    = document.getElementById('genKeyBtn');
+const keyBox       = document.getElementById('keyBox');
+const copyBtn      = document.getElementById('copyBtn');
+const msg          = document.getElementById('msg');
 
-// Return target (so Return button knows where to go)
-const params    = new URLSearchParams(location.search);
-const returnTo  = params.get('returnTo') || 'https://chat.openai.com/';
+const debugBlock   = document.getElementById('debugBlock');
+const showTokenBtn = document.getElementById('showTokenBtn');
+const tokenBox     = document.getElementById('tokenBox');
 
-// ---- Helpers ---------------------------------------------------------------
+const urlParams = new URLSearchParams(location.search);
+const isDebug   = urlParams.get('debug') === '1';
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function setStatus(ok, text) {
-  statusDot.textContent = (ok ? '● ' : '○ ') + text;
-  statusDot.style.background = ok ? '#dcfce7' : '#fee2e2';
-  statusDot.style.borderColor = ok ? '#86efac' : '#fecaca';
-  statusDot.style.color = ok ? '#065f46' : '#7f1d1d';
+  statusPill.textContent = (ok ? '● ' : '○ ') + text;
+  statusPill.style.background = ok ? '#dcfce7' : '#fee2e2';
+  statusPill.style.borderColor = ok ? '#86efac' : '#fecaca';
+  statusPill.style.color = ok ? '#065f46' : '#7f1d1d';
 }
-function setMessage(text, type='') {
-  msg.textContent = text || '';
-  msg.className = type ? type : 'muted';
-}
+
 async function getSession() {
   const { data } = await supabase.auth.getSession();
   return data?.session || null;
 }
-async function refreshStatus() {
+
+async function refreshUI() {
   const session = await getSession();
-  if (session?.user) {
+  const authed = !!session?.user;
+
+  if (authed) {
     setStatus(true, 'Signed in');
     emailPill.style.display = 'inline-block';
-    emailPill.textContent = session.user.email;
+    emailPill.textContent = session.user.email || 'Signed in';
     logoutBtn.style.display = 'inline-block';
+
+    signedOut.style.display = 'none';
+    signedIn.style.display = 'grid';
     genKeyBtn.disabled = false;
+
+    if (isDebug) debugBlock.style.display = 'grid';
   } else {
     setStatus(false, 'Not signed in');
     emailPill.style.display = 'none';
     logoutBtn.style.display = 'none';
+
+    signedIn.style.display = 'none';
+    signedOut.style.display = 'grid';
     genKeyBtn.disabled = true;
+    keyBox.style.display = 'none';
+    copyBtn.disabled = true;
+
+    debugBlock.style.display = isDebug ? 'grid' : 'none';
+    tokenBox.style.display = 'none';
   }
 }
 
-// ---- Auth actions ----------------------------------------------------------
+// ── Events ────────────────────────────────────────────────────────────────────
 sendLinkBtn.addEventListener('click', async () => {
-  const email = prompt('Enter your email to receive a magic link:');
-  if (!email) return;
-  const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: location.href } });
-  if (error) return setMessage(`Error sending link: ${error.message}`, 'error');
-  setMessage('Magic link sent. Check your email.', 'ok');
+  const email = (emailInput.value || '').trim();
+  if (!email) return (emailInput.focus(), undefined);
+
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: location.href }
+  });
+  if (error) {
+    msg.textContent = `Error sending link: ${error.message}`;
+    msg.className = 'hint err';
+  } else {
+    msg.textContent = `Magic link sent to ${email}. Check your inbox.`;
+    msg.className = 'hint ok';
+  }
 });
 
 logoutBtn.addEventListener('click', async () => {
   await supabase.auth.signOut();
-  keyBox.style.display = 'none';
-  copyBtn.disabled = true;
-  returnBtn.disabled = true;
-  setMessage('Signed out. Re-send a magic link to sign in.', '');
-  refreshStatus();
+  msg.textContent = 'Signed out.';
+  msg.className = 'hint';
+  await refreshUI();
 });
 
 showTokenBtn.addEventListener('click', async () => {
-  const session = await getSession();
-  if (!session) return setMessage('Not signed in.', 'error');
+  const ses = await getSession();
+  if (!ses) return;
   tokenBox.style.display = 'block';
-  tokenBox.textContent = session.access_token;
+  tokenBox.textContent = ses.access_token;
 });
 
-// ---- Generate key via backend ----------------------------------------------
+// Create short Connect Key using backend
 genKeyBtn.addEventListener('click', async () => {
-  try {
-    const session = await getSession();
-    if (!session) return setMessage('Please sign in first.', 'error');
+  const ses = await getSession();
+  if (!ses) { await refreshUI(); return; }
 
-    setMessage('Generating key…');
+  genKeyBtn.disabled = true;
+  msg.textContent = 'Generating key…';
+  msg.className = 'hint';
+
+  try {
     const resp = await fetch(`${BACKEND_BASE}/api/connect/issue`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${session.access_token}`,
-        'Accept': 'application/json',
-      },
+        'Authorization': `Bearer ${ses.access_token}`,
+        'Accept': 'application/json'
+      }
     });
-
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok) {
-      console.error('issue error', data);
-      return setMessage(`Error generating key: ${data.error || resp.statusText}`, 'error');
+      msg.textContent = `Error: ${data.error || resp.statusText}`;
+      msg.className = 'hint err';
+      genKeyBtn.disabled = false;
+      return;
     }
-
-    // Expect { key: 'SB-XXXX-XXX-X-XXXX', expires_at: '...' }
+    // Expect: { key: "SB-....", expires_at: "..." }
     keyBox.style.display = 'block';
     keyBox.textContent = data.key;
     copyBtn.disabled = false;
-    returnBtn.disabled = false;
-    setMessage('Key created. Copy it, then return to ChatGPT and paste it.', 'ok');
+    msg.textContent = 'Key created. Copy it and paste into YourSlimBuddy GPT when asked.';
+    msg.className = 'hint ok';
   } catch (e) {
     console.error(e);
-    setMessage('Unexpected error creating key.', 'error');
+    msg.textContent = 'Unexpected error creating key.';
+    msg.className = 'hint err';
+  } finally {
+    genKeyBtn.disabled = false;
   }
 });
 
 copyBtn.addEventListener('click', async () => {
-  const value = keyBox.textContent.trim();
+  const value = (keyBox.textContent || '').trim();
   if (!value) return;
-  await navigator.clipboard.writeText(value).catch(() => {});
-  setMessage('Copied. Now return to ChatGPT and paste your key.', 'ok');
+  try { await navigator.clipboard.writeText(value); } catch {}
+  msg.textContent = 'Copied. Paste this key in YourSlimBuddy GPT.';
+  msg.className = 'hint ok';
 });
 
-returnBtn.addEventListener('click', () => {
-  const value = keyBox.textContent.trim();
-  if (value) {
-    // Try to grant temporary clipboard read permission prompt on some browsers
-    // then return to the GPT chat page.
-  }
-  window.location.href = returnTo;
+// Keep UI in sync with auth state (including magic-link redirect)
+supabase.auth.onAuthStateChange(async (_event, _session) => {
+  await refreshUI();
 });
-
-// ---- Boot ------------------------------------------------------------------
-supabase.auth.onAuthStateChange(() => refreshStatus());
-refreshStatus();
+await refreshUI();
