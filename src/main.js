@@ -5,43 +5,31 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// ── Env (Netlify) ─────────────────────────────────────────────────────────────
+// ---- Environment (Vite injects these at build time)
 const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const BACKEND_BASE  = import.meta.env.VITE_BACKEND_BASE; // e.g. https://slimbuddy-backend-production.up.railway.app
 
-if (!SUPABASE_URL || !SUPABASE_ANON || !BACKEND_BASE) {
-  console.error('Missing env: VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY / VITE_BACKEND_BASE');
-}
+// ---- DOM
+const statusPill = document.getElementById('statusPill');
+const emailPill  = document.getElementById('emailPill');
+const logoutBtn  = document.getElementById('logoutBtn');
 
-// Supabase client: detectSessionInUrl=true is critical for magic-link return
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-});
+const envLine = document.getElementById('envLine');
+const envWarn = document.getElementById('envWarn');
 
-// ── Elements ──────────────────────────────────────────────────────────────────
-const statusPill   = document.getElementById('statusPill');
-const emailPill    = document.getElementById('emailPill');
-const logoutBtn    = document.getElementById('logoutBtn');
+const signedOut   = document.getElementById('signedOut');
+const emailInput  = document.getElementById('emailInput');
+const sendLinkBtn = document.getElementById('sendLinkBtn');
 
-const signedOut    = document.getElementById('signedOut');
-const emailInput   = document.getElementById('emailInput');
-const sendLinkBtn  = document.getElementById('sendLinkBtn');
+const signedIn  = document.getElementById('signedIn');
+const signedAs  = document.getElementById('signedAs');
+const genKeyBtn = document.getElementById('genKeyBtn');
+const keyBox    = document.getElementById('keyBox');
+const copyBtn   = document.getElementById('copyBtn');
+const msg       = document.getElementById('msg');
 
-const signedIn     = document.getElementById('signedIn');
-const genKeyBtn    = document.getElementById('genKeyBtn');
-const keyBox       = document.getElementById('keyBox');
-const copyBtn      = document.getElementById('copyBtn');
-const msg          = document.getElementById('msg');
-
-const debugBlock   = document.getElementById('debugBlock');
-const showTokenBtn = document.getElementById('showTokenBtn');
-const tokenBox     = document.getElementById('tokenBox');
-
-const urlParams = new URLSearchParams(location.search);
-const isDebug   = urlParams.get('debug') === '1';
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ---- Small UI helpers
 function setStatus(ok, text) {
   statusPill.textContent = (ok ? '● ' : '○ ') + text;
   statusPill.style.background = ok ? '#dcfce7' : '#fee2e2';
@@ -49,123 +37,118 @@ function setStatus(ok, text) {
   statusPill.style.color = ok ? '#065f46' : '#7f1d1d';
 }
 
-async function getSession() {
-  const { data } = await supabase.auth.getSession();
-  return data?.session || null;
+// Env line (so you can confirm what Netlify injected)
+envLine.textContent =
+  `Env: SUPABASE_URL=${!!SUPABASE_URL} • ANON=${!!SUPABASE_ANON} • BACKEND_BASE=${!!BACKEND_BASE}`;
+
+// Warn if anything missing
+const missing = [];
+if (!SUPABASE_URL)  missing.push('VITE_SUPABASE_URL');
+if (!SUPABASE_ANON) missing.push('VITE_SUPABASE_ANON_KEY');
+if (!BACKEND_BASE)  missing.push('VITE_BACKEND_BASE');
+if (missing.length) {
+  envWarn.style.display = 'block';
+  envWarn.textContent = `Missing environment variable(s): ${missing.join(', ')}. The page will still render, but key generation and/or login cannot work until these are set in Netlify and redeployed.`;
 }
 
+// ---- Supabase client (optional; page still works without it)
+let supabase = null;
+if (SUPABASE_URL && SUPABASE_ANON) {
+  supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+  });
+}
+
+// ---- Renderers
+function showSignedOut() {
+  setStatus(false, 'Not signed in');
+  emailPill.style.display = 'none';
+  logoutBtn.style.display = 'none';
+  signedOut.style.display = 'grid';
+  signedIn.style.display = 'none';
+  genKeyBtn.disabled = true;
+  copyBtn.disabled = true;
+  keyBox.style.display = 'none';
+}
+
+async function showSignedIn(user) {
+  setStatus(true, 'Signed in');
+  emailPill.style.display = 'inline-block';
+  emailPill.textContent = user.email || 'Signed in';
+  logoutBtn.style.display = 'inline-block';
+  signedAs.textContent = `Signed in as ${user.email || 'your account'}`;
+
+  signedOut.style.display = 'none';
+  signedIn.style.display = 'grid';
+  genKeyBtn.disabled = false;
+}
+
+// ---- State refresh
 async function refreshUI() {
-  const session = await getSession();
-  const authed = !!session?.user;
-
-  if (authed) {
-    setStatus(true, 'Signed in');
-    emailPill.style.display = 'inline-block';
-    emailPill.textContent = session.user.email || 'Signed in';
-    logoutBtn.style.display = 'inline-block';
-
-    signedOut.style.display = 'none';
-    signedIn.style.display = 'grid';
-    genKeyBtn.disabled = false;
-
-    if (isDebug) debugBlock.style.display = 'grid';
-  } else {
-    setStatus(false, 'Not signed in');
-    emailPill.style.display = 'none';
-    logoutBtn.style.display = 'none';
-
-    signedIn.style.display = 'none';
-    signedOut.style.display = 'grid';
-    genKeyBtn.disabled = true;
-    keyBox.style.display = 'none';
-    copyBtn.disabled = true;
-
-    debugBlock.style.display = isDebug ? 'grid' : 'none';
-    tokenBox.style.display = 'none';
-  }
+  if (!supabase) { showSignedOut(); return; }
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.user) showSignedIn(session.user);
+  else showSignedOut();
 }
 
-// ── Events ────────────────────────────────────────────────────────────────────
+// ---- Events
 sendLinkBtn.addEventListener('click', async () => {
+  if (!supabase) { msg.textContent = 'Supabase not configured.'; msg.className='hint'; return; }
   const email = (emailInput.value || '').trim();
-  if (!email) return (emailInput.focus(), undefined);
-
+  if (!email) { emailInput.focus(); return; }
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: { emailRedirectTo: location.href }
   });
-  if (error) {
-    msg.textContent = `Error sending link: ${error.message}`;
-    msg.className = 'hint err';
-  } else {
-    msg.textContent = `Magic link sent to ${email}. Check your inbox.`;
-    msg.className = 'hint ok';
-  }
+  if (error) { msg.textContent = `Error: ${error.message}`; msg.className='hint'; }
+  else { msg.textContent = `Magic link sent to ${email}. Check your inbox.`; msg.className='hint'; }
 });
 
 logoutBtn.addEventListener('click', async () => {
-  await supabase.auth.signOut();
-  msg.textContent = 'Signed out.';
-  msg.className = 'hint';
+  if (supabase) await supabase.auth.signOut();
   await refreshUI();
 });
 
-showTokenBtn.addEventListener('click', async () => {
-  const ses = await getSession();
-  if (!ses) return;
-  tokenBox.style.display = 'block';
-  tokenBox.textContent = ses.access_token;
-});
-
-// Create short Connect Key using backend
 genKeyBtn.addEventListener('click', async () => {
-  const ses = await getSession();
-  if (!ses) { await refreshUI(); return; }
+  if (!supabase) { msg.textContent = 'Supabase not configured.'; return; }
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) { await refreshUI(); return; }
 
-  genKeyBtn.disabled = true;
-  msg.textContent = 'Generating key…';
-  msg.className = 'hint';
+  genKeyBtn.disabled = true; msg.textContent = 'Generating key…';
 
   try {
     const resp = await fetch(`${BACKEND_BASE}/api/connect/issue`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${ses.access_token}`,
-        'Accept': 'application/json'
+        Authorization: `Bearer ${session.access_token}`,
+        Accept: 'application/json'
       }
     });
-    const data = await resp.json().catch(() => ({}));
+    const data = await resp.json().catch(()=> ({}));
     if (!resp.ok) {
       msg.textContent = `Error: ${data.error || resp.statusText}`;
-      msg.className = 'hint err';
-      genKeyBtn.disabled = false;
-      return;
+      genKeyBtn.disabled = false; return;
     }
-    // Expect: { key: "SB-....", expires_at: "..." }
     keyBox.style.display = 'block';
     keyBox.textContent = data.key;
     copyBtn.disabled = false;
-    msg.textContent = 'Key created. Copy it and paste into YourSlimBuddy GPT when asked.';
-    msg.className = 'hint ok';
+    msg.textContent = 'Key created. Copy it and paste into YourSlimBuddy GPT.';
   } catch (e) {
-    console.error(e);
-    msg.textContent = 'Unexpected error creating key.';
-    msg.className = 'hint err';
+    msg.textContent = 'Network error creating key.';
   } finally {
     genKeyBtn.disabled = false;
   }
 });
 
 copyBtn.addEventListener('click', async () => {
-  const value = (keyBox.textContent || '').trim();
-  if (!value) return;
-  try { await navigator.clipboard.writeText(value); } catch {}
+  const v = (keyBox.textContent || '').trim();
+  if (!v) return;
+  try { await navigator.clipboard.writeText(v); } catch {}
   msg.textContent = 'Copied. Paste this key in YourSlimBuddy GPT.';
-  msg.className = 'hint ok';
 });
 
-// Keep UI in sync with auth state (including magic-link redirect)
-supabase.auth.onAuthStateChange(async (_event, _session) => {
-  await refreshUI();
-});
-await refreshUI();
+// ---- Boot
+if (supabase) {
+  supabase.auth.onAuthStateChange(() => refreshUI());
+}
+refreshUI();
