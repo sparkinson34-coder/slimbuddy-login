@@ -1,88 +1,111 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>YourSlimBuddy — Connect</title>
-  <style>
-    :root{
-      --bg:#f7f8fb;--card:#fff;--text:#111827;--muted:#6b7280;
-      --border:#e5e7eb;--primary:#2563eb;--success:#15803d;--danger:#b91c1c;
-      --radius:16px
-    }
-    html,body{margin:0;background:var(--bg);color:var(--text);
-      font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
-    .wrap{max-width:760px;margin:36px auto;padding:0 16px}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
-      box-shadow:0 8px 24px rgba(0,0,0,.06);padding:24px}
-    h1{margin:0 0 8px;font-size:28px}
-    p.lead{margin:6px 0 18px;color:var(--muted)}
-    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-    .pill{background:#eef2ff;border:1px solid #c7d2fe;color:#3730a3;
-      padding:6px 10px;border-radius:999px;font-size:14px}
-    .ok{color:var(--success)} .err{color:var(--danger)}
-    .grid{display:grid;gap:12px}
-    .divider{height:1px;background:var(--border);margin:18px 0}
-    .btn{appearance:none;border:1px solid var(--border);background:#fff;
-      padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600}
-    .btn.primary{background:var(--primary);color:#fff;border-color:transparent}
-    .btn:disabled{opacity:.6;cursor:not-allowed}
-    input[type="email"]{width:100%;padding:12px;border:1px solid var(--border);
-      border-radius:10px;font-size:16px}
-    .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-      background:#f3f4f6;border:1px solid var(--border);padding:10px;border-radius:8px;word-break:break-all}
-    .hint{color:var(--muted);font-size:13px}
-    .footer{display:flex;gap:16px;margin-top:8px}
-    .link{color:var(--primary);text-decoration:none;font-weight:600}
-    .link:hover{text-decoration:underline}
-    .warn{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;padding:10px;border-radius:10px}
-    .envline{font-size:12px;color:#6b7280;margin-top:8px}
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="card">
-      <h1>YourSlimBuddy Connect</h1>
-      <p class="lead">Link ChatGPT to your account using a short, secure <strong>Connect Key</strong>.</p>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>YourSlimBuddy — Get Your Access Key</title>
+    <meta name="color-scheme" content="light only" />
+    <style>
+      :root{
+        --bg:#f7f9fc; --card:#ffffff; --text:#0f172a; --muted:#475569;
+        --primary:#2563eb; --primary-600:#1d4ed8; --success:#16a34a; --warning:#d97706; --danger:#dc2626; --border:#e2e8f0;
+      }
+      *{box-sizing:border-box}
+      body{
+        margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+        background:var(--bg); color:var(--text);
+      }
+      .container{
+        max-width:680px; margin:32px auto; padding:16px;
+      }
+      .card{
+        background:var(--card); border:1px solid var(--border); border-radius:16px; padding:24px;
+        box-shadow:0 10px 20px rgba(0,0,0,.05);
+      }
+      h1{margin:0 0 8px 0; font-size:1.7rem;}
+      .sub{color:var(--muted); margin:0 0 16px 0}
+      .row{display:flex; gap:12px; flex-wrap:wrap}
+      .input{
+        flex:1 1 220px; padding:12px 14px; border:1px solid var(--border); border-radius:10px; font-size:1rem;
+        background:#fff; color:var(--text);
+      }
+      .btn{
+        display:inline-flex; align-items:center; justify-content:center;
+        padding:12px 16px; border-radius:10px; border:1px solid transparent;
+        font-weight:600; cursor:pointer; user-select:none; text-decoration:none;
+      }
+      .btn-primary{ background:var(--primary); color:#fff; }
+      .btn-primary:hover{ background:var(--primary-600); }
+      .btn-outline{ background:#fff; color:var(--text); border-color:var(--border); }
+      .btn-danger{ background:var(--danger); color:#fff; }
+      .pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;font-size:.9rem;border:1px solid var(--border);background:#fff;color:var(--muted)}
+      .muted{ color:var(--muted); font-size:.95rem; }
+      .success{ color:var(--success); }
+      .warn{ color:var(--warning); }
+      .error{ color:var(--danger); }
+      .divider{height:1px;background:var(--border);margin:20px 0}
+      .row-actions{display:flex; gap:10px; flex-wrap:wrap}
+      .debug{ display:none; border:1px dashed var(--border); padding:12px; border-radius:10px; background:#fcfefe; }
+      .kbd{background:#eef2ff;border:1px solid #c7d2fe;border-bottom-width:2px;padding:2px 6px;border-radius:6px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}
+      .keybox{
+        margin-top:8px; padding:12px; border:1px dashed var(--border); background:#f8fafc; border-radius:10px;
+        font-family:ui-monospace, SFMono-Regular, Menlo, monospace;
+        word-break:break-all;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="card">
+        <h1>Welcome to YourSlimBuddy</h1>
+        <p class="sub">Get your access key to connect the <strong>YourSlimBuddy</strong> GPT.</p>
 
-      <div class="row" id="statusRow">
-        <span id="statusPill" class="pill">● Connecting…</span>
-        <span id="emailPill" class="pill" style="display:none;"></span>
-        <button id="logoutBtn" class="btn" style="display:none;">Sign out</button>
-      </div>
-
-      <div id="envLine" class="envline"></div>
-      <div id="envWarn" class="warn" style="display:none;margin-top:12px;"></div>
-
-      <div class="divider"></div>
-
-      <!-- Signed OUT -->
-      <div id="signedOut" class="grid">
-        <input id="emailInput" type="email" placeholder="Enter your email" autocomplete="email"/>
-        <button id="sendLinkBtn" class="btn">Send magic link</button>
-        <div class="hint">We’ll email you a one-time link. No password required.</div>
-      </div>
-
-      <!-- Signed IN -->
-      <div id="signedIn" class="grid" style="display:none;">
-        <div class="hint" id="signedAs"></div>
-        <button id="genKeyBtn" class="btn primary" disabled>Generate Connect Key</button>
-        <div id="keyBox" class="kbd" style="display:none"></div>
-        <div class="row">
-          <button id="copyBtn" class="btn" disabled>Copy Key</button>
+        <!-- Signed-in row (email + logout) -->
+        <div class="row" id="signedRow" style="display:none; align-items:center; justify-content:space-between;">
+          <span class="pill" id="signedAs">Signed in</span>
+          <button id="logoutBtn" class="btn btn-outline">Log out</button>
         </div>
-        <div id="msg" class="hint"></div>
-      </div>
 
-      <div class="divider"></div>
-      <div class="footer">
-        <a class="link" href="/privacy.html" target="_blank" rel="noreferrer">Privacy</a>
-        <a class="link" href="/terms.html" target="_blank" rel="noreferrer">Terms</a>
+        <!-- Step 1: Email capture -->
+        <div id="emailStep">
+          <p class="muted">Enter your email and we’ll send you a magic link. Tap it, and you’ll come right back here to get your key.</p>
+          <div class="row">
+            <input id="emailInput" class="input" type="email" placeholder="you@example.com" autocomplete="email" />
+            <button id="sendLinkBtn" class="btn btn-primary">Send magic link</button>
+          </div>
+          <p id="emailStatus" class="muted" style="margin-top:8px;"></p>
+        </div>
+
+        <!-- Step 2: After magic-link redirect (has access_token) -->
+        <div id="tokenStep" style="display:none;">
+          <p class="success">✓ You’re signed in — generate your <strong>Connect Key</strong> for the GPT.</p>
+          <div class="row-actions">
+            <button id="genKeyBtn" class="btn btn-primary">Generate Connect Key</button>
+            <button id="copyKeyBtn" class="btn btn-outline" style="display:none;">Copy Key</button>
+            <button id="returnBtn" class="btn btn-outline" style="display:none;">Return to YourSlimBuddy</button>
+          </div>
+          <div id="keyBox" class="keybox" style="display:none;"></div>
+          <p id="tokenStatus" class="muted" style="margin-top:8px;"></p>
+        </div>
+
+        <div class="divider"></div>
+
+        <p class="muted">
+          Need help? In the GPT, choose <span class="kbd">Login to YourSlimBuddy</span>, then paste the key you copy from here when asked.
+        </p>
+
+        <div id="debugBlock" class="debug" style="margin-top:14px;">
+          <strong>Debug</strong>
+          <div id="dbg"></div>
+        </div>
+
+        <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;">
+          <a href="/privacy.html" class="muted">Privacy</a>
+          <a href="/terms.html" class="muted">Terms</a>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Vite will rewrite this to the built asset on deploy -->
-  <script type="module" src="/src/main.js"></script>
-</body>
+    <script type="module" src="/src/main.js"></script>
+  </body>
 </html>

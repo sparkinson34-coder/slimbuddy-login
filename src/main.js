@@ -3,185 +3,213 @@
 // - Calls Railway backend /api/connect/issue to mint short Connect Key
 // - Copies key and returns user to ChatGPT (returnTo)
 
+// src/main.js
 import { createClient } from '@supabase/supabase-js';
 
-// --- Handle Supabase magic-link hash (#access_token, #refresh_token) ---
-(async () => {
-  const hash = new URLSearchParams(window.location.hash.slice(1));
-  const access_token  = hash.get('access_token');
-  const refresh_token = hash.get('refresh_token');
+// --- ENV (Vite) ---
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const BACKEND_BASE = import.meta.env.VITE_BACKEND_BASE || 'https://slimbuddy-backend-production.up.railway.app';
 
-  if (access_token && refresh_token) {
-    // Create a session from the tokens in the hash
-    const { data, error } = await supabase.auth.setSession({
-      access_token,
-      refresh_token,
-    });
-    // Clean the URL (remove the fragment so it doesn't confuse future loads)
-    history.replaceState({}, document.title, location.pathname + location.search);
-    if (error) {
-      console.error('setSession error:', error);
-    }
-  }
-})();
+// --- Supabase client ---
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { autoRefreshToken: true, persistSession: false } // we don't persist; we use hash token for backend call
+});
 
-// ---- Environment (Vite injects these at build time)
-const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const BACKEND_BASE  = import.meta.env.VITE_BACKEND_BASE; // e.g. https://slimbuddy-backend-production.up.railway.app
-
-// ---- DOM
-const statusPill = document.getElementById('statusPill');
-const emailPill  = document.getElementById('emailPill');
-const logoutBtn  = document.getElementById('logoutBtn');
-
-const envLine = document.getElementById('envLine');
-const envWarn = document.getElementById('envWarn');
-
-const signedOut   = document.getElementById('signedOut');
-const emailInput  = document.getElementById('emailInput');
+// --- Elements ---
+const emailStep = document.getElementById('emailStep');
+const emailInput = document.getElementById('emailInput');
 const sendLinkBtn = document.getElementById('sendLinkBtn');
+const emailStatus = document.getElementById('emailStatus');
 
-const signedIn  = document.getElementById('signedIn');
-const signedAs  = document.getElementById('signedAs');
+const tokenStep = document.getElementById('tokenStep');
 const genKeyBtn = document.getElementById('genKeyBtn');
-const keyBox    = document.getElementById('keyBox');
-const copyBtn   = document.getElementById('copyBtn');
-const msg       = document.getElementById('msg');
+const copyKeyBtn = document.getElementById('copyKeyBtn');
+const returnBtn = document.getElementById('returnBtn');
+const keyBox = document.getElementById('keyBox');
+const tokenStatus = document.getElementById('tokenStatus');
 
-// ---- Small UI helpers
-function setStatus(ok, text) {
-  statusPill.textContent = (ok ? '● ' : '○ ') + text;
-  statusPill.style.background = ok ? '#dcfce7' : '#fee2e2';
-  statusPill.style.borderColor = ok ? '#86efac' : '#fecaca';
-  statusPill.style.color = ok ? '#065f46' : '#7f1d1d';
+const signedRow = document.getElementById('signedRow');
+const signedAs = document.getElementById('signedAs');
+const logoutBtn = document.getElementById('logoutBtn');
+
+const debugBlock = document.getElementById('debugBlock');
+const dbg = document.getElementById('dbg');
+
+// --- Helpers ---
+const qs = new URLSearchParams(window.location.search);
+const hasDebug = qs.has('debug');
+if (hasDebug) {
+  debugBlock.style.display = 'block';
 }
 
-// Env line (so you can confirm what Netlify injected)
-envLine.textContent =
-  `Env: SUPABASE_URL=${!!SUPABASE_URL} • ANON=${!!SUPABASE_ANON} • BACKEND_BASE=${!!BACKEND_BASE}`;
-
-// Warn if anything missing
-const missing = [];
-if (!SUPABASE_URL)  missing.push('VITE_SUPABASE_URL');
-if (!SUPABASE_ANON) missing.push('VITE_SUPABASE_ANON_KEY');
-if (!BACKEND_BASE)  missing.push('VITE_BACKEND_BASE');
-if (missing.length) {
-  envWarn.style.display = 'block';
-  envWarn.textContent = `Missing environment variable(s): ${missing.join(', ')}. The page will still render, but key generation and/or login cannot work until these are set in Netlify and redeployed.`;
+function setDebug(key, val) {
+  if (!hasDebug) return;
+  const div = document.createElement('div');
+  div.textContent = `${key}: ${val}`;
+  dbg.appendChild(div);
 }
 
-// ---- Supabase client (optional; page still works without it)
-let supabase = null;
-if (SUPABASE_URL && SUPABASE_ANON) {
-  supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-  });
+// Parse location.hash returned by magic link: #access_token=...&expires_at=...&refresh_token=...&token_type=bearer&type=magiclink
+function parseHash() {
+  const hash = window.location.hash?.replace(/^#/, '') || '';
+  const params = new URLSearchParams(hash);
+  const token = params.get('access_token');
+  const refresh = params.get('refresh_token');
+  const type = params.get('type');
+  return { token, refresh, type };
 }
 
-// ---- Renderers
-function showSignedOut() {
-  setStatus(false, 'Not signed in');
-  emailPill.style.display = 'none';
-  logoutBtn.style.display = 'none';
-  signedOut.style.display = 'grid';
-  signedIn.style.display = 'none';
-  genKeyBtn.disabled = true;
-  copyBtn.disabled = true;
-  keyBox.style.display = 'none';
+function getReturnTarget() {
+  // Preserve returnTo=https://chatgpt.com/g/<...> if present
+  return qs.get('returnTo') || '';
 }
 
-async function showSignedIn(user) {
-  setStatus(true, 'Signed in');
-  emailPill.style.display = 'inline-block';
-  emailPill.textContent = user.email || 'Signed in';
-  logoutBtn.style.display = 'inline-block';
-  signedAs.textContent = `Signed in as ${user.email || 'your account'}`;
-
-  signedOut.style.display = 'none';
-  signedIn.style.display = 'grid';
-  genKeyBtn.disabled = false;
+function showSignedIn(email) {
+  signedRow.style.display = 'flex';
+  signedAs.textContent = `Signed in as ${email}`;
 }
 
-// ---- State refresh
-async function refreshUI() {
-  if (!supabase) { showSignedOut(); return; }
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session?.user) showSignedIn(session.user);
-  else showSignedOut();
+function showEmailForm() {
+  emailStep.style.display = 'block';
+  tokenStep.style.display = 'none';
 }
 
-// ---- Events
+function showTokenStep() {
+  emailStep.style.display = 'none';
+  tokenStep.style.display = 'block';
+}
+
+async function getUserEmailFromJWT(jwt) {
+  const { data, error } = await supabase.auth.getUser(jwt);
+  if (error) return { email: null, error };
+  return { email: data.user?.email || null, error: null };
+}
+
+// --- Send magic link ---
 sendLinkBtn.addEventListener('click', async () => {
-  if (!supabase) { msg.textContent = 'Supabase not configured.'; msg.className='hint'; return; }
-  const email = (emailInput.value || '').trim();
-  if (!email) { emailInput.focus(); return; }
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: { emailRedirectTo: location.href }
-  });
-  if (error) { msg.textContent = `Error: ${error.message}`; msg.className='hint'; }
-  else { msg.textContent = `Magic link sent to ${email}. Check your inbox.`; msg.className='hint'; }
-});
-
-logoutBtn.addEventListener('click', async () => {
-  if (supabase) await supabase.auth.signOut();
-  await refreshUI();
-});
-
-genKeyBtn.addEventListener('click', async () => {
-  if (!supabase) { msg.textContent = 'Supabase not configured.'; return; }
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.access_token) { await refreshUI(); return; }
-
-  genKeyBtn.disabled = true; msg.textContent = 'Generating key…';
+  const email = emailInput.value.trim();
+  if (!email) {
+    emailStatus.innerHTML = '<span class="error">Please enter your email.</span>';
+    return;
+  }
+  sendLinkBtn.disabled = true;
+  emailStatus.textContent = 'Sending magic link…';
 
   try {
-    const resp = await fetch(`${BACKEND_BASE}/api/connect/issue`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${session.access_token}`,
-        Accept: 'application/json'
+    const emailRedirectTo = `${window.location.origin}${window.location.pathname}${window.location.search}`;
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo
       }
     });
-    const data = await resp.json().catch(()=> ({}));
-    if (!resp.ok) {
-      msg.textContent = `Error: ${data.error || resp.statusText}`;
-      genKeyBtn.disabled = false; return;
+    if (error) {
+      // 429 rate limit is common when testing repeatedly
+      if (error.message?.toLowerCase().includes('rate') || error.status === 429) {
+        emailStatus.innerHTML = '<span class="warn">Too many requests — please wait a minute and try again.</span>';
+      } else {
+        emailStatus.innerHTML = `<span class="error">Failed to send link: ${error.message}</span>`;
+      }
+    } else {
+      emailStatus.innerHTML = '<span class="success">Magic link sent — check your inbox (sender: Supabase Auth).</span>';
     }
-    keyBox.style.display = 'block';
-    keyBox.textContent = data.key;
-    copyBtn.disabled = false;
-    msg.textContent = 'Key created. Copy it and paste into YourSlimBuddy GPT.';
   } catch (e) {
-    msg.textContent = 'Network error creating key.';
+    emailStatus.innerHTML = `<span class="error">Unexpected error: ${e.message}</span>`;
   } finally {
-    genKeyBtn.disabled = false;
+    sendLinkBtn.disabled = false;
   }
 });
 
-copyBtn.addEventListener('click', async () => {
-  const v = (keyBox.textContent || '').trim();
-  if (!v) return;
-  try { await navigator.clipboard.writeText(v); } catch {}
-  msg.textContent = 'Copied. Paste this key in YourSlimBuddy GPT.';
+// --- On load: handle magic-link callback ---
+window.addEventListener('DOMContentLoaded', async () => {
+  const { token, refresh, type } = parseHash();
+  setDebug('hashType', type || '(none)');
+  setDebug('hasToken', token ? 'yes' : 'no');
+
+  if (token) {
+    // We have a session JWT from magic link — show token step, fetch email, and allow issuing a Connect Key
+    showTokenStep();
+
+    // Get user email (for header, and “signed in as”)
+    const { email, error } = await getUserEmailFromJWT(token);
+    if (email) {
+      showSignedIn(email);
+    } else {
+      showSignedIn('YourSlimBuddy user');
+      setDebug('emailError', error?.message || 'unknown');
+    }
+
+    // Enable Generate Connect Key
+    genKeyBtn.disabled = false;
+
+    // Wire up copy + return after key is minted
+    copyKeyBtn.addEventListener('click', async () => {
+      const text = keyBox.textContent.trim();
+      if (!text) return;
+      await navigator.clipboard.writeText(text);
+      tokenStatus.innerHTML = '<span class="success">Key copied to clipboard.</span>';
+      const rt = getReturnTarget();
+      if (rt) {
+        // small delay so the user sees the “copied” feedback
+        setTimeout(() => (window.location.href = rt), 400);
+      }
+    });
+
+    // Generate Connect Key -> POST /api/connect/issue with Bearer JWT
+    genKeyBtn.addEventListener('click', async () => {
+      genKeyBtn.disabled = true;
+      tokenStatus.textContent = 'Generating your Connect Key…';
+
+      try {
+        const resp = await fetch(`${BACKEND_BASE}/api/connect/issue`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+          },
+        });
+        const json = await resp.json();
+        if (!resp.ok) {
+          tokenStatus.innerHTML = `<span class="error">Error generating key: ${json?.error || resp.statusText}</span>`;
+          genKeyBtn.disabled = false;
+          return;
+        }
+        keyBox.textContent = json.key;
+        keyBox.style.display = 'block';
+        copyKeyBtn.style.display = 'inline-flex';
+        returnBtn.style.display = getReturnTarget() ? 'inline-flex' : 'none';
+        tokenStatus.innerHTML = '<span class="success">Connect Key ready — copy it and return to YourSlimBuddy GPT.</span>';
+      } catch (e) {
+        tokenStatus.innerHTML = `<span class="error">Error generating key: ${e.message}</span>`;
+        genKeyBtn.disabled = false;
+      }
+    });
+
+    // Return button: only when returnTo given
+    returnBtn.addEventListener('click', () => {
+      const rt = getReturnTarget();
+      if (rt) window.location.href = rt;
+    });
+
+    // Logout clears UI (since we don’t persist sessions, just reload)
+    logoutBtn.addEventListener('click', async () => {
+      await supabase.auth.signOut();
+      window.location.href = window.location.origin + window.location.pathname + window.location.search; // clear hash
+    });
+
+  } else {
+    // No token in hash — show email form
+    showEmailForm();
+    logoutBtn.addEventListener('click', async () => {
+      await supabase.auth.signOut();
+      showEmailForm();
+      signedRow.style.display = 'none';
+    });
+  }
+
+  // Debug info (only with ?debug)
+  setDebug('SUPABASE_URL', SUPABASE_URL);
+  setDebug('BACKEND_BASE', BACKEND_BASE);
+  setDebug('returnTo', getReturnTarget() || '(none)');
 });
-
-// Optional: show a debug button only if ?debug=1 is present
-const params = new URLSearchParams(location.search);
-if (params.get('debug') === '1') {
-  const dbgBtn = document.createElement('button');
-  dbgBtn.className = 'btn';
-  dbgBtn.textContent = 'Show session token (debug)';
-  document.getElementById('signedIn').appendChild(dbgBtn);
-  dbgBtn.addEventListener('click', async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    alert(session?.access_token ? session.access_token : 'No session');
-  });
-}
-
-// ---- Boot
-if (supabase) {
-  supabase.auth.onAuthStateChange(() => refreshUI());
-}
-refreshUI();
